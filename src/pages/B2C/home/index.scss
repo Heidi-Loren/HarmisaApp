@@ -1,0 +1,47 @@
+.b2c-home {
+  padding: 20px;
+  background-color: #f9f9f9;
+
+  .title {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .desc {
+    font-size: 15px;
+    color: #555;
+    text-align: center;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  .layer-box {
+    background: #fff;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+
+    .layer-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #333;
+    }
+
+    .layer-desc {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .main-btn {
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 6px;
+    }
+  }
+}
