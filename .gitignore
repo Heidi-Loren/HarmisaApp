@@ -1,8 +1,15 @@
+# builds
 dist/
-deploy_versions/
-.temp/
-.rn_temp/
+.next/
+build/
+
+# deps
 node_modules/
+
+# env
+.env*
+!.env.example
+
+# editors
+.vscode/
 .DS_Store
-.swc
-*.local
