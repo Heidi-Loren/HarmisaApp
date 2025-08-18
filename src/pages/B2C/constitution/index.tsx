@@ -1,12 +1,13 @@
 // src/pages/B2C/constitution/index.tsx
-import React, { useMemo, useState } from 'react'
-import { View, Text, Radio, RadioGroup, Button } from '@tarojs/components'
+import React, { useMemo, useState, useEffect } from 'react'
+import { View, Text, Radio, RadioGroup, Button, Label } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
 
 type Question = { id: number; text: string; reverse?: boolean }
 type Answer = { id: number; score: 1 | 2 | 3 | 4 | 5 }
 type Result = {
+  resultId?: number | string | null
   mainType: string
   subTypes: string[]
   tags?: string[]
@@ -14,24 +15,35 @@ type Result = {
   createdAt?: string
 }
 
-const API_BASE = 'https://your-backend-domain.com/api/constitution'
-// const BACKEND_URL = 'https://harmisa.vercel.app/api/constitution/submit'
+const API_BASE = 'https://harmisa-app.vercel.app/api/constitution'
 const LABELS = ['从不', '偶尔', '有时', '经常', '总是']
+const STORAGE_KEY = 'constitutionAnswers'
+const DEVICE_ID_KEY = 'deviceId'
 
-// 前端仅保留题面（无权重）
+// 生成/读取一个本地唯一 deviceId，当作临时 userId
+function getOrCreateDeviceId() {
+  let id = Taro.getStorageSync(DEVICE_ID_KEY)
+  if (!id) {
+    id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+    Taro.setStorageSync(DEVICE_ID_KEY, id)
+  }
+  return id as string
+}
+
+// 前端仅保留题面
 const QUESTIONS: Question[] = [
   { id: 1,  text: '您精力充沛吗？',           reverse: true },
-  { id: 2,  text: '您容易疲乏吗？'                           },
-  { id: 3,  text: '您手脚发凉吗？'                           },
-  { id: 4,  text: '您感到手脚心发热吗？'                     },
-  { id: 5,  text: '您容易便秘或大便干燥吗？'                 },
-  { id: 6,  text: '您面部或鼻部有油腻感吗？'                 },
-  { id: 7,  text: '您感到身体沉重不轻松吗？'                 },
-  { id: 8,  text: '您的皮肤容易出现青紫瘀斑吗？'             },
-  { id: 9,  text: '您感到闷闷不乐吗？'                       },
-  { id:10,  text: '您容易过敏吗？'                           },
-  { id:11,  text: '您比一般人怕冷吗？'                       },
-  { id:12,  text: '您适应环境变化的能力很强？', reverse: true }
+  { id: 2,  text: '您容易疲乏吗？' },
+  { id: 3,  text: '您手脚发凉吗？' },
+  { id: 4,  text: '您感到手脚心发热吗？' },
+  { id: 5,  text: '您容易便秘或大便干燥吗？' },
+  { id: 6,  text: '您面部或鼻部有油腻感吗？' },
+  { id: 7,  text: '您感到身体沉重不轻松吗？' },
+  { id: 8,  text: '您的皮肤容易出现青紫瘀斑吗？' },
+  { id: 9,  text: '您感到闷闷不乐吗？' },
+  { id: 10, text: '您容易过敏吗？' },
+  { id: 11, text: '您比一般人怕冷吗？' },
+  { id: 12, text: '您适应环境变化的能力很强？', reverse: true }
 ]
 
 export default function ConstitutionPage() {
@@ -39,6 +51,14 @@ export default function ConstitutionPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [error, setError] = useState('')
+
+  // 恢复本地缓存
+  useEffect(() => {
+    const saved = Taro.getStorageSync(STORAGE_KEY)
+    if (saved && Array.isArray(saved) && saved.length === QUESTIONS.length) {
+      setAnswers(saved)
+    }
+  }, [])
 
   const answeredCount = useMemo(() => answers.filter(Boolean).length, [answers])
   const allAnswered = answeredCount === QUESTIONS.length
@@ -48,6 +68,13 @@ export default function ConstitutionPage() {
     const next = [...answers]
     next[i] = v
     setAnswers(next)
+    Taro.setStorageSync(STORAGE_KEY, next)
+  }
+
+  const scrollToFirstUnanswered = (idx: number) => {
+    if (idx >= 0) {
+      Taro.pageScrollTo({ selector: `#q-${idx + 1}`, duration: 200 })
+    }
   }
 
   const onSubmit = async () => {
@@ -58,20 +85,31 @@ export default function ConstitutionPage() {
       const msg = `请完成第 ${first + 1} 题`
       setError(msg)
       Taro.showToast({ title: msg, icon: 'none' })
+      scrollToFirstUnanswered(first)
       return
     }
 
     setLoading(true)
     try {
-      const payload = { answers: answers.map((score, i) => ({ id: QUESTIONS[i].id, score })) as Answer[] }
+      const userId = getOrCreateDeviceId() // ← 临时用户标识
+      const payload = {
+        userId,
+        answers: answers.map((score, i) => ({ id: QUESTIONS[i].id, score })) as Answer[]
+      }
+
       const res = await Taro.request<Result>({
         url: `${API_BASE}/submit`,
         method: 'POST',
         header: { 'Content-Type': 'application/json' },
         data: payload
       })
+
       if (res.statusCode >= 200 && res.statusCode < 300 && res.data) {
         setResult(res.data)
+        // 可选：把 resultId 存起来，供“查看本次结果”使用
+        if ((res.data as any).resultId) {
+          Taro.setStorageSync('lastConstitutionResultId', (res.data as any).resultId)
+        }
         Taro.showToast({ title: '测评完成', icon: 'success' })
       } else {
         throw new Error(`服务器错误：${res.statusCode}`)
@@ -93,16 +131,20 @@ export default function ConstitutionPage() {
       </View>
 
       {QUESTIONS.map((q, i) => (
-        <View key={q.id} className='question-card'>
+        <View key={q.id} className='question-card' id={`q-${i + 1}`}>
           <Text className='q-index'>{i + 1}</Text>
           <Text className='q-text'>{q.text}</Text>
 
           <RadioGroup className='options' onChange={(e) => onChange(i, e.detail.value)}>
             {[1, 2, 3, 4, 5].map((v) => (
-              <View key={v} className={`option-item ${answers[i] === v ? 'active' : ''}`}>
-                <Radio value={String(v)} checked={answers[i] === v} />
+              <Label
+                key={v}
+                className={`option-item ${answers[i] === v ? 'active' : ''}`}
+                for={`q${q.id}-opt${v}`}
+              >
+                <Radio id={`q${q.id}-opt${v}`} value={String(v)} checked={answers[i] === v} />
                 <Text className='opt-label'>{LABELS[v - 1]}</Text>
-              </View>
+              </Label>
             ))}
           </RadioGroup>
         </View>
@@ -111,7 +153,12 @@ export default function ConstitutionPage() {
       {error ? <Text className='error'>{error}</Text> : null}
 
       <View className='submit-bar'>
-        <Button className='submit-btn' onClick={onSubmit} loading={loading} disabled={!allAnswered || loading}>
+        <Button
+          className='submit-btn'
+          onClick={onSubmit}
+          loading={loading}
+          disabled={!allAnswered || loading}
+        >
           {allAnswered ? (loading ? '提交中...' : '提交') : '请先答完全部题目'}
         </Button>
       </View>
@@ -119,6 +166,10 @@ export default function ConstitutionPage() {
       {result && (
         <View className='result-box'>
           <Text className='result-title'>测评结果</Text>
+          {/* （可选）显示 resultId，便于调试/复制 */}
+          {'resultId' in result && result.resultId != null ? (
+            <Text className='ver'>记录ID：{String(result.resultId)}</Text>
+          ) : null}
           <Text>主体质：{result.mainType}</Text>
           <Text>副体质：{result.subTypes?.length ? result.subTypes.join('、') : '无'}</Text>
           {result.tags?.length ? <Text>推荐方向：{result.tags.join('、')}</Text> : null}
@@ -129,5 +180,3 @@ export default function ConstitutionPage() {
     </View>
   )
 }
-
-

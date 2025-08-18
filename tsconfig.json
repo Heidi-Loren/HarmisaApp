@@ -42,7 +42,7 @@
     "./src",
     "./types",
     "./config"
-  ],
+, "api/constitution"  ],
   "compileOnSave": false,
   "exclude": [
     "node_modules"
