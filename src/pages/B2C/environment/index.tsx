@@ -1,111 +1,60 @@
-'use client'
-
+import { View, Text, Button } from '@tarojs/components'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 
-export default function ClimateRecommendationPage() {
-  const [formData, setFormData] = useState({
-    date: '',
-    temperature: '',
-    humidity: '',
-    windSpeed: '',
-    precipitation: '',
-    sunshineHours: '',
-  })
-
+export default function EnvironmentPage() {
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
+  useDidShow(() => {
+    getEnvResult()
+  })
 
-  const handleSubmit = async () => {
+  async function getEnvResult() {
     setLoading(true)
     try {
-      const res = await fetch('/api/climate-recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          temperature: parseFloat(formData.temperature),
-          humidity: parseFloat(formData.humidity),
-          windSpeed: parseFloat(formData.windSpeed),
-          precipitation: parseFloat(formData.precipitation),
-          sunshineHours: parseFloat(formData.sunshineHours),
-        }),
+      const loc = await Taro.getLocation({ type: 'wgs84' })
+      const res = await Taro.request({
+        url: 'https://harmisa-app.vercel.app/api/environment/resolve',
+        method: 'GET',
+        data: { lat: loc.latitude, lon: loc.longitude }
       })
-
-      const data = await res.json()
-      setResult(data)
-    } catch (err) {
-      console.error('❌ Error:', err)
-      setResult({ error: '请求失败' })
+      setResult(res.data)
+    } catch (e) {
+      Taro.showToast({ title: '定位失败，使用默认城市', icon: 'none' })
+      const res = await Taro.request({
+        url: 'https://harmisa-app.vercel.app/api/environment/resolve',
+        method: 'GET',
+        data: { city: '上海市' }
+      })
+      setResult(res.data)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="p-8 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">🌦 气候饮食推荐</h1>
-      <div className="space-y-4">
-        {['date', 'temperature', 'humidity', 'windSpeed', 'precipitation', 'sunshineHours'].map((field) => (
-          <div key={field}>
-            <label className="block mb-1 font-medium">{field}</label>
-            <input
-              type={field === 'date' ? 'date' : 'number'}
-              name={field}
-              value={(formData as any)[field]}
-              onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
-            />
-          </div>
-        ))}
-
-        <button
-          onClick={handleSubmit}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          disabled={loading}
-        >
-          {loading ? '加载中...' : '获取推荐'}
-        </button>
-      </div>
-
+    <View className='env-page'>
+      <Text className='title'>🌦 环境饮食推荐</Text>
+      {loading && <Text>加载中...</Text>}
       {result && (
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-2">🍽 推荐结果</h2>
-          {result.error ? (
-            <p className="text-red-600">{result.error}</p>
-          ) : (
-            <div className="space-y-2">
-              <p>📌 季节建议：{result.seasonalTips}</p>
-              <p>📊 推荐方向排序：</p>
-              <ul className="list-disc pl-5">
-                {result.directionRanking.map((d: string, i: number) => (
-                  <li key={i}>{d}</li>
-                ))}
-              </ul>
-              <p>✅ 推荐食材标签：</p>
-              <ul className="list-disc pl-5">
-                {result.recommendedFoodTags.map((tag: string, i: number) => (
-                  <li key={i}>{tag}</li>
-                ))}
-              </ul>
-              {result.avoidTags?.length > 0 && (
-                <>
-                  <p>⚠️ 忌口标签：</p>
-                  <ul className="list-disc pl-5 text-red-500">
-                    {result.avoidTags.map((tag: string, i: number) => (
-                      <li key={i}>{tag}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
+        <View>
+          <Text>📍 地点：{result.city} {result.province}</Text>
+          <Text>🍂 季节：{result.season}</Text>
+          <Text>🌡 温度：{result.weather.temp}℃</Text>
+
+          <Text>📌 建议方向：</Text>
+          {result.tags.map((t: string, i: number) => <Text key={i}>{t}</Text>)}
+
+          <Text>✅ 推荐食材：</Text>
+          {result.recommendedFoodTags.map((f: string, i: number) => <Text key={i}>{f}</Text>)}
+
+          {result.avoidTags?.length > 0 && (
+            <Text>⚠️ 忌口：{result.avoidTags.join('、')}</Text>
           )}
-        </div>
+        </View>
       )}
-    </div>
+      <Button onClick={getEnvResult}>刷新</Button>
+    </View>
   )
 }
