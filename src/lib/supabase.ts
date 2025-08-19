@@ -1,8 +1,24 @@
 // src/lib/supabase.ts
+// 统一入口：
+// - weapp：禁止使用 Supabase SDK（抛错，不导入 SDK）
+// - h5：动态导入 @supabase/supabase-js，再创建客户端
 
-import { createClient } from '@supabase/supabase-js';
+export async function getSupabaseClient() {
+  // Taro 构建时会注入 TARO_ENV
+  if (process.env.TARO_ENV !== 'h5') {
+    throw new Error('Supabase SDK 在 weapp 不可用，请改用后端 API（Taro.request）')
+  }
 
-export const supabase = createClient(
-    'https://ijreiwvgaplcjrjwbrkg.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqcmVpd3ZnYXBsY2pyandicmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0NDUyODksImV4cCI6MjA3MTAyMTI4OX0.SWR_vzbCpmcYX7Hg8MxRuhnutlxIBEMQgF8UttP6J_o'
-  );
+  // 只有在 h5 才加载 SDK，避免被打进 weapp 包
+  const { createClient } = await import('@supabase/supabase-js')
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !anonKey) {
+    throw new Error('缺少 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  }
+
+  return createClient(url, anonKey, {
+    auth: { persistSession: true, autoRefreshToken: true }
+  })
+}

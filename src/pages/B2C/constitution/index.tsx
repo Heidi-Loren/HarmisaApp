@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { View, Text, Radio, RadioGroup, Button, Label } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { saveConstitution } from '@/utils/constitution/save'
 import './index.scss'
 
 type Question = { id: number; text: string; reverse?: boolean }
@@ -15,7 +16,6 @@ type Result = {
   createdAt?: string
 }
 
-const API_BASE = 'https://harmisa-app.vercel.app/api/constitution'
 const LABELS = ['从不', '偶尔', '有时', '经常', '总是']
 const STORAGE_KEY = 'constitutionAnswers'
 const DEVICE_ID_KEY = 'deviceId'
@@ -97,23 +97,13 @@ export default function ConstitutionPage() {
         answers: answers.map((score, i) => ({ id: QUESTIONS[i].id, score })) as Answer[]
       }
 
-      const res = await Taro.request<Result>({
-        url: `${API_BASE}/submit`,
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        data: payload
-      })
+      const res = await saveConstitution(payload)
 
-      if (res.statusCode >= 200 && res.statusCode < 300 && res.data) {
-        setResult(res.data)
-        // 可选：把 resultId 存起来，供“查看本次结果”使用
-        if ((res.data as any).resultId) {
-          Taro.setStorageSync('lastConstitutionResultId', (res.data as any).resultId)
-        }
-        Taro.showToast({ title: '测评完成', icon: 'success' })
-      } else {
-        throw new Error(`服务器错误：${res.statusCode}`)
+      setResult(res as Result)
+      if ((res as any).resultId) {
+        Taro.setStorageSync('lastConstitutionResultId', (res as any).resultId)
       }
+      Taro.showToast({ title: '测评完成', icon: 'success' })
     } catch (e: any) {
       const msg = e?.message || '提交失败，请稍后重试'
       setError(msg)
@@ -135,7 +125,10 @@ export default function ConstitutionPage() {
           <Text className='q-index'>{i + 1}</Text>
           <Text className='q-text'>{q.text}</Text>
 
-          <RadioGroup className='options' onChange={(e) => onChange(i, e.detail.value)}>
+          <RadioGroup
+            className='options'
+            onChange={(e: any) => onChange(i, e?.detail?.value)}
+          >
             {[1, 2, 3, 4, 5].map((v) => (
               <Label
                 key={v}
@@ -166,7 +159,6 @@ export default function ConstitutionPage() {
       {result && (
         <View className='result-box'>
           <Text className='result-title'>测评结果</Text>
-          {/* （可选）显示 resultId，便于调试/复制 */}
           {'resultId' in result && result.resultId != null ? (
             <Text className='ver'>记录ID：{String(result.resultId)}</Text>
           ) : null}
