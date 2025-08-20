@@ -1,4 +1,3 @@
-// src/pages/B2C/environment/index.tsx
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
@@ -11,14 +10,17 @@ import {
 import { provinceToRegion } from '@/utils/climate/provinceToRegion'
 import './index.scss'
 
-// ---------- 将“省 → 区域”反转成“区域 → 省[]”，并固定区域顺序 ----------
+// 固定区域顺序
 const REGION_ORDER = ['华东', '华南', '华北', '西南', '西北'] as const
+
+// 反向映射：“区域 -> 省[]”，并做规范化
 const REGION_TO_PROVINCES: Record<string, string[]> = (() => {
   const map: Record<string, string[]> = {}
   REGION_ORDER.forEach((r) => (map[r] = []))
   Object.entries(provinceToRegion).forEach(([prov, region]) => {
-    if (!map[region]) map[region] = []
-    map[region].push(prov)
+    const r = String(region || '').trim()
+    if (!map[r]) map[r] = []
+    map[r].push(prov)
   })
   Object.keys(map).forEach((k) => map[k].sort())
   return map
@@ -43,7 +45,7 @@ export default function EnvironmentPage() {
         const info = await resolveEnvByLocation(loc.latitude, loc.longitude)
         setEnv(info)
       } else {
-        await pickCity() // 拒绝定位 → 走城市选择
+        await pickCity()
       }
     } catch (e: any) {
       setEnv(null)
@@ -65,31 +67,32 @@ export default function EnvironmentPage() {
     }
   }
 
-  // ---------- “区域 → 省份”两步 ActionSheet ----------
+  // 两步 ActionSheet：区域 -> 省份
   async function pickCity() {
     try {
-      // 第一步：选区域
       const resRegion = await Taro.showActionSheet({
         itemList: REGION_ORDER as unknown as string[]
       })
       const region = REGION_ORDER[resRegion.tapIndex]
       if (!region) return
 
-      // 第二步：选省/直辖市
-      const provList = REGION_TO_PROVINCES[region] || []
-      if (!provList.length) return
+      const provList = (REGION_TO_PROVINCES[region] || []).map((s) => s.trim())
+      if (!provList.length) {
+        Taro.showToast({ title: '该区域暂无可选省份', icon: 'none' })
+        return
+      }
+
       const resProv = await Taro.showActionSheet({ itemList: provList })
       const province = provList[resProv.tapIndex]
       if (!province) return
 
       setLoading(true)
-      const info = await resolveEnvByCity(province) // 后端会做名称规范化
+      const info = await resolveEnvByCity(province) // 后端会做规范化
       setEnv(info)
 
-      // 想记住选择再放开下面一行（非必需）
-      // Taro.setStorageSync('envPreferredCity', province)
+      // 想记住选择：Taro.setStorageSync('envPreferredCity', province)
     } catch {
-      // 用户取消，不提示
+      // 用户取消
     } finally {
       setLoading(false)
     }
@@ -99,7 +102,7 @@ export default function EnvironmentPage() {
     if (!env) return
     try {
       await submitEnvResult({
-        userId: null, // 暂无用户体系，用 null；之后可换 deviceId
+        userId: null,
         city: env.city,
         province: env.province,
         season: env.season,
@@ -113,12 +116,19 @@ export default function EnvironmentPage() {
     }
   }
 
+  // 头部文案：若 city 与 province 相同或为空，就只显示 province，避免“北京 · 北京市/北京 · 重庆市”这类观感问题
+  function headerTitle() {
+    if (!env) return '定位中...'
+    const city = String(env.city || '').trim()
+    const prov = String(env.province || '').trim()
+    if (!city || city === prov) return prov || city || '未识别'
+    return `${city} · ${prov}`
+  }
+
   return (
     <View className='env-page'>
       <View className='header'>
-        <Text className='city'>
-          {env ? `${env.city || ''} · ${env.province || ''}` : '定位中...'}
-        </Text>
+        <Text className='city'>{headerTitle()}</Text>
         {env ? <Text className='season'>{env.season}</Text> : null}
       </View>
 
@@ -171,7 +181,7 @@ export default function EnvironmentPage() {
           刷新
         </Button>
         <Button onClick={pickCity} disabled={loading}>
-          选择城市
+          选择地域
         </Button>
         <Button onClick={onSave} disabled={!env || loading}>
           保存本次结果
