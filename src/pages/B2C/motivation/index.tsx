@@ -1,168 +1,206 @@
-"use client";
-import 'whatwg-fetch'
-import { saveMotivationProfile } from "@/utils/motivation/save";
-import { createClient } from '@supabase/supabase-js';
+// src/pages/B2C/motivation/index.tsx
+import React, { useMemo, useState } from 'react'
+import { View, Text, Radio, RadioGroup, Label, Button } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import './index.scss'
 
-import React, { useState } from "react";
-import { calculateMotivationProfile, Option } from "@/utils/motivation/score";
-import { generateMotivationExplanation } from "@/utils/motivation/explain";
+import { calculateMotivationProfile, type Option } from '@/utils/motivation/score'
+import { generateMotivationExplanation } from '@/utils/motivation/explain'
+import { saveMotivation } from '@/utils/motivation/save'
 
-import {
-  RadarChart as RawRadarChart,
-  PolarGrid,
-  PolarAngleAxis as RawPolarAngleAxis,
-  Radar as RawRadar,
-  ResponsiveContainer
-} from "recharts";
+// —— 题目（12题）
+const QUESTIONS: string[] = [
+  '你最常考虑什么因素来决定吃什么？',
+  '健身/学习期间，你如何选择饮食？',
+  '你是否愿意查阅营养信息来规划饮食？',
+  '你偏好的饮食报告格式是？',
+  '你改变饮食习惯的最大动因是？',
+  '你更容易开始健康饮食的方式是？',
+  '你希望App提醒饮食频率是？',
+  '你看到推荐推送时的反应是？',
+  '情绪低落时你会？',
+  '下班后你更常吃的类型？',
+  '换城市生活时你如何选饮食？',
+  '你饮食会随天气/季节变化吗？'
+]
 
-const RadarChart = RawRadarChart as any;
-const PolarAngleAxis = RawPolarAngleAxis as any;
-const Radar = RawRadar as any;
+// —— 选项文案
+const OPTION_LABEL: Record<Option, string> = {
+  A: 'A. 健康目标/计划导向',
+  B: 'B. 习惯和熟悉度',
+  C: 'C. 社交场景影响',
+  D: 'D. 情绪与当下状态'
+}
 
-const questions = [
-  "你最常考虑什么因素来决定吃什么？",
-  "健身/学习期间，你如何选择饮食？",
-  "你是否愿意查阅营养信息来规划饮食？",
-  "你偏好的饮食报告格式是？",
-  "你改变饮食习惯的最大动因是？",
-  "你更容易开始健康饮食的方式是？",
-  "你希望App提醒饮食频率是？",
-  "你看到推荐推送时的反应是？",
-  "情绪低落时你会？",
-  "下班后你更常吃的类型？",
-  "换城市生活时你如何选饮食？",
-  "你饮食会随天气/季节变化吗？"
-];
+// —— 本地 deviceId（与体质页一致）
+const DEVICE_ID_KEY = 'deviceId'
+function getOrCreateDeviceId() {
+  let id = Taro.getStorageSync(DEVICE_ID_KEY)
+  if (!id) {
+    id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+    Taro.setStorageSync(DEVICE_ID_KEY, id)
+  }
+  return id as string
+}
 
-const options: Record<Option, string> = {
-  A: "A. 健康目标/计划导向",
-  B: "B. 习惯和熟悉度",
-  C: "C. 社交场景影响",
-  D: "D. 情绪与当下状态"
-};
+// —— A/B/C/D → 数值（如果后端需要按题保存“答案”）
+function optionToScore(opt: Option) {
+  return opt === 'A' ? 1 : opt === 'B' ? 2 : opt === 'C' ? 3 : 4
+}
 
 export default function MotivationPage() {
-  const [answers, setAnswers] = useState<(Option | null)[]>(Array(12).fill(null));
-  const [result, setResult] = useState<null | ReturnType<typeof calculateMotivationProfile>>(null);
+  const [answers, setAnswers] = useState<Array<Option | ''>>(Array(12).fill(''))
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState<ReturnType<typeof calculateMotivationProfile> | null>(null)
+  const [explain, setExplain] = useState<ReturnType<typeof generateMotivationExplanation> | null>(null)
 
-  const handleSelect = (index: number, value: Option) => {
-    const newAnswers = [...answers];
-    newAnswers[index] = value;
-    setAnswers(newAnswers);
-  };
+  const answeredCount = useMemo(() => answers.filter(Boolean).length, [answers])
+  const allAnswered = answeredCount === QUESTIONS.length
 
-  const handleSubmit = async () => {
-    if (answers.includes(null)) {
-      alert("请完成所有问题");
-      return;
+  function onChange(i: number, v: string) {
+    const next = [...answers]
+    next[i] = v as Option
+    setAnswers(next)
+  }
+
+  async function onSubmit() {
+    setError('')
+    setResult(null)
+    setExplain(null)
+
+    if (!allAnswered) {
+      const first = answers.findIndex(v => !v)
+      const msg = `请完成第 ${first + 1} 题`
+      setError(msg)
+      Taro.showToast({ title: msg, icon: 'none' })
+      return
     }
-
-    const res = calculateMotivationProfile(answers as Option[]);
-    setResult(res);
 
     try {
-      const supabase = createClient(
-  'https://saqtujjgtkopomwhjult.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhcXR1ampndGtvcG9td2hqdWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5NjUxOTksImV4cCI6MjA2NjU0MTE5OX0.yeoOdJKCj1jebH4WHDz0GIQ-xjRw_-Vb-FTJ65BMjsc'
-);
-      const { data: { user } } = await supabase.auth.getUser();
+      setLoading(true)
 
-      if (user) {
-        await saveMotivationProfile(user.id, res);
-        console.log("保存成功");
-      } else {
-        console.warn("未登录，无法保存结果");
-      }
-    } catch (err) {
-      console.error("保存失败", err);
+      // 1) 本地计算动因画像
+      const r = calculateMotivationProfile(answers as Option[])
+      setResult(r)
+      const exp = generateMotivationExplanation(r)
+      setExplain(exp)
+
+      // 2) 提交到你的后端（通过 utils/motivation/save.ts）
+      const userId = getOrCreateDeviceId()
+      await saveMotivation({
+        userId,
+        answers: (answers as Option[]).map((opt, i) => ({
+          id: i + 1,
+          score: optionToScore(opt)
+        }))
+      })
+
+      Taro.showToast({ title: '提交成功', icon: 'success' })
+    } catch (e: any) {
+      const msg = e?.message || '提交失败，请稍后重试'
+      setError(msg)
+      Taro.showToast({ title: msg, icon: 'none' })
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
-  const radarData = result
-    ? Object.entries(result.ratio).map(([key, value]) => ({
-        dimension:
-          key === "P"
-            ? "自我管理"
-            : key === "H"
-            ? "习惯驱动"
-            : key === "S"
-            ? "社交导向"
-            : "情绪调节",
-        score: value
-      }))
-    : [];
-
-  const explanation = result ? generateMotivationExplanation(result) : null;
+  function onReset() {
+    setAnswers(Array(12).fill(''))
+    setResult(null)
+    setExplain(null)
+    setError('')
+  }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">四维动因问卷</h1>
-      {questions.map((q, i) => (
-        <div key={i} className="border rounded p-4 shadow">
-          <p className="font-medium mb-2">{i + 1}. {q}</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(["A", "B", "C", "D"] as Option[]).map(opt => (
-              <label key={opt} className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name={`q${i}`}
-                  value={opt}
-                  checked={answers[i] === opt}
-                  onChange={() => handleSelect(i, opt)}
-                />
-                <span>{options[opt]}</span>
-              </label>
+    <View className='page motivation'>
+      <View className='header'>
+        <Text className='title'>四维动因问卷</Text>
+        <Text className='progress'>已答 {answeredCount}/{QUESTIONS.length}</Text>
+      </View>
+
+      {QUESTIONS.map((q, i) => (
+        <View key={i} className='question-card'>
+          <Text className='q-index'>{i + 1}</Text>
+          <Text className='q-text'>{q}</Text>
+
+          <RadioGroup
+            className='options'
+            onChange={(e) => onChange(i, e.detail.value)}
+          >
+            {(['A', 'B', 'C', 'D'] as Option[]).map(opt => (
+              <Label
+                key={opt}
+                className={`option-item ${answers[i] === opt ? 'active' : ''}`}
+                for={`q${i + 1}-opt${opt}`}
+              >
+                <Radio id={`q${i + 1}-opt${opt}`} value={opt} checked={answers[i] === opt} />
+                <Text className='opt-label'>{OPTION_LABEL[opt]}</Text>
+              </Label>
             ))}
-          </div>
-        </div>
+          </RadioGroup>
+        </View>
       ))}
 
-      <button
-        onClick={handleSubmit}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow"
-      >
-        提交问卷
-      </button>
+      {error ? <Text className='error'>{error}</Text> : null}
 
-      {result && explanation && (
-        <div className="mt-8 border-t pt-6 space-y-4">
-          <h2 className="text-xl font-semibold">你的动因画像</h2>
-          <p><strong>主标签：</strong>{result.main} - {explanation.mainLabel}</p>
-          <p><strong>副标签：</strong>{result.secondary.join(" / ")}</p>
+      <View className='submit-bar'>
+        <Button
+          className='submit-btn'
+          onClick={onSubmit}
+          loading={loading}
+          disabled={!allAnswered || loading}
+        >
+          {allAnswered ? (loading ? '提交中...' : '提交问卷') : '请先答完全部题目'}
+        </Button>
+        <Button className='reset-btn' onClick={onReset} disabled={loading}>
+          重置
+        </Button>
+      </View>
 
-          <h3 className="mt-4 font-medium">动因分布雷达图：</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="dimension" />
-                <Radar
-                  name="动因分布"
-                  dataKey="score"
-                  stroke="#8884d8"
-                  fill="#8884d8"
-                  fillOpacity={0.6}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
+      {result && explain && (
+        <View className='result-box'>
+          <Text className='result-title'>动因画像</Text>
 
-          <div className="mt-6 space-y-2 bg-gray-50 border rounded p-4 text-sm leading-relaxed">
-            <h4 className="font-semibold">主标签解释</h4>
-            <p>{explanation.mainText}</p>
+          <View className='row'>
+            <Text className='label'>主标签：</Text>
+            <Text className='value'>{result.main} · {explain.mainLabel}</Text>
+          </View>
 
-            {explanation.secondaryText && (
+          <View className='row'>
+            <Text className='label'>副标签：</Text>
+            <Text className='value'>
+              {result.secondary.length ? result.secondary.join(' / ') : '无'}
+            </Text>
+          </View>
+
+          <View className='ratio'>
+            <Text className='label'>动因比例：</Text>
+            <View className='ratio-items'>
+              <Text>P {result.ratio.P}</Text>
+              <Text>H {result.ratio.H}</Text>
+              <Text>S {result.ratio.S}</Text>
+              <Text>E {result.ratio.E}</Text>
+            </View>
+          </View>
+
+          <View className='explain'>
+            <Text className='ex-title'>主标签解释</Text>
+            <Text className='ex-text'>{explain.mainText}</Text>
+
+            {!!explain.secondaryText && (
               <>
-                <h4 className="font-semibold mt-4">副标签解释</h4>
-                <p>{explanation.secondaryText}</p>
+                <Text className='ex-title'>副标签解释</Text>
+                <Text className='ex-text'>{explain.secondaryText}</Text>
               </>
             )}
 
-            <h4 className="font-semibold mt-4">总结</h4>
-            <p>{explanation.summaryText}</p>
-          </div>
-        </div>
+            <Text className='ex-title'>总结</Text>
+            <Text className='ex-text'>{explain.summaryText}</Text>
+          </View>
+        </View>
       )}
-    </div>
-  );
+    </View>
+  )
 }
