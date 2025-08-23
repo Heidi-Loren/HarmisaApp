@@ -1,3 +1,4 @@
+// src/pages/B2C/environment/index.tsx
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
@@ -8,6 +9,7 @@ import {
   type EnvInfo
 } from '@/utils/api/environment'
 import { provinceToRegion } from '@/utils/climate/provinceToRegion'
+import { getOrCreateDeviceId } from '@/utils/device'
 import './index.scss'
 
 // 固定区域顺序
@@ -101,13 +103,16 @@ export default function EnvironmentPage() {
   async function onSave() {
     if (!env) return
     try {
+      const deviceId = getOrCreateDeviceId() // ✅ 带上设备ID
       await submitEnvResult({
         userId: null,
+        deviceId, // ✅ 新增
         city: env.city,
         province: env.province,
         season: env.season,
         weather: env.weather,
         tags: env.tags,
+        avoidTags: env.avoidTags,
         algorithmVersion: env._debug?.version || '1.0.0'
       })
       Taro.showToast({ title: '已保存', icon: 'success' })
@@ -116,7 +121,7 @@ export default function EnvironmentPage() {
     }
   }
 
-  // 头部文案：若 city 与 province 相同或为空，就只显示 province，避免“北京 · 北京市/北京 · 重庆市”这类观感问题
+  // 头部文案：若 city 与 province 相同或为空，就只显示 province
   function headerTitle() {
     if (!env) return '定位中...'
     const city = String(env.city || '').trim()

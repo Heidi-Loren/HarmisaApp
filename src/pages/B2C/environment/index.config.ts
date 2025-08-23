@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: '环境推荐'
+  navigationBarTitleText: '地域+气候'
 })

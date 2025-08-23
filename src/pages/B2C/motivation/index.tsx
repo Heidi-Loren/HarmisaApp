@@ -7,6 +7,7 @@ import './index.scss'
 import { calculateMotivationProfile, type Option } from '@/utils/motivation/score'
 import { generateMotivationExplanation } from '@/utils/motivation/explain'
 import { saveMotivation } from '@/utils/motivation/save'
+import { getOrCreateDeviceId } from '@/utils/device'
 
 // —— 题目（12题）
 const QUESTIONS: string[] = [
@@ -32,18 +33,7 @@ const OPTION_LABEL: Record<Option, string> = {
   D: 'D. 情绪与当下状态'
 }
 
-// —— 本地 deviceId（与体质页一致）
-const DEVICE_ID_KEY = 'deviceId'
-function getOrCreateDeviceId() {
-  let id = Taro.getStorageSync(DEVICE_ID_KEY)
-  if (!id) {
-    id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-    Taro.setStorageSync(DEVICE_ID_KEY, id)
-  }
-  return id as string
-}
-
-// —— A/B/C/D → 数值（如果后端需要按题保存“答案”）
+// —— A/B/C/D → 数值（提交答案用）
 function optionToScore(opt: Option) {
   return opt === 'A' ? 1 : opt === 'B' ? 2 : opt === 'C' ? 3 : 4
 }
@@ -87,9 +77,10 @@ export default function MotivationPage() {
       setExplain(exp)
 
       // 2) 提交到你的后端（通过 utils/motivation/save.ts）
-      const userId = getOrCreateDeviceId()
+      const deviceId = getOrCreateDeviceId()
       await saveMotivation({
-        userId,
+        userId: null,                         // 现在无登录
+        deviceId,                             // ✅ 带上设备ID
         answers: (answers as Option[]).map((opt, i) => ({
           id: i + 1,
           score: optionToScore(opt)

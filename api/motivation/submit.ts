@@ -18,12 +18,13 @@ const supabase =
     : null
 
 type Answer = { id: number; score: 1 | 2 | 3 | 4 } // 1~4 来自 A/B/C/D 映射
+
 type Resp =
   | {
       id: string | number | null
       createdAt: string
       main: string
-      ratio: Record<'P'|'H'|'S'|'E', number>
+      ratio: Record<'P' | 'H' | 'S' | 'E', number>
       secondary: string[]
       algorithmVersion: string
     }
@@ -38,8 +39,9 @@ export default async function handler(
   }
 
   try {
-    const { userId, answers } = (req.body ?? {}) as {
+    const { userId, deviceId, answers } = (req.body ?? {}) as {
       userId?: string
+      deviceId?: string
       answers?: Answer[]
     }
 
@@ -51,9 +53,9 @@ export default async function handler(
     const mapNumToOpt: Record<number, Option> = { 1: 'A', 2: 'B', 3: 'C', 4: 'D' }
     const opts: Option[] = answers
       .sort((a, b) => a.id - b.id)
-      .map(a => mapNumToOpt[a.score])
+      .map((a) => mapNumToOpt[a.score])
 
-    if (opts.some(v => !v)) {
+    if (opts.some((v) => !v)) {
       return res.status(400).json({ error: 'Invalid input: 选项必须在 A~D' })
     }
 
@@ -66,10 +68,11 @@ export default async function handler(
         .from('motivation_results')
         .insert({
           user_id: userId ?? null,
-          answers,                 // 原始答案（jsonb）
-          main: prof.main,         // text
-          ratio: prof.ratio,       // jsonb
-          secondary: prof.secondary, // jsonb 或 text[]（见建表）
+          device_id: deviceId ?? null,     // ✅ 写入设备ID
+          answers,                         // 原始答案（jsonb）
+          main: prof.main,                 // text
+          ratio: prof.ratio,               // jsonb
+          secondary: prof.secondary,       // jsonb 或 text[]
           algorithm_version: ALGO_VERSION,
         })
         .select('id')

@@ -1,37 +1,41 @@
 // src/utils/constitution/save.ts
 import Taro from '@tarojs/taro'
 
+// —— 类型
 export type OptionScore = 1 | 2 | 3 | 4 | 5
 export interface Answer { id: number; score: OptionScore }
-export interface SubmitPayload { userId?: string; answers: Answer[] }
-export interface SubmitResult {
-  resultId: number | string | null
+
+export interface SubmitPayload {
+  userId?: string | null
+  deviceId?: string | null   // ✅ 新增：支持 deviceId
+  answers: Answer[]
+}
+
+export interface SubmitResp {
+  resultId: string | number | null
   mainType: string
   subTypes: string[]
   tags: string[]
   algorithmVersion: string
   createdAt: string
+  error?: string
 }
 
-// 这里用你部署在 Vercel 的域名；若有自定义域名，替换掉即可
+// 你的线上 API 域名
 const API_BASE = 'https://harmisa-app.vercel.app/api/constitution'
 
-export async function saveConstitution(payload: SubmitPayload): Promise<SubmitResult> {
-  const res = await Taro.request<SubmitResult>({
+export async function saveConstitution(payload: SubmitPayload): Promise<SubmitResp> {
+  const res = await Taro.request<SubmitResp>({
     url: `${API_BASE}/submit`,
     method: 'POST',
-    data: payload,
+    data: payload, // 包含 deviceId
     header: { 'Content-Type': 'application/json' },
     timeout: 20000
   })
 
   if (res.statusCode < 200 || res.statusCode >= 300) {
-    // 将后端 error 透出，便于定位
-    const maybe = (res.data as any) as { error?: string }
-    throw new Error(maybe?.error ? `服务器错误：${maybe.error}` : `服务器错误：${res.statusCode}`)
+    throw new Error((res.data as any)?.error || `服务器错误：${res.statusCode}`)
   }
-  if (!res.data || typeof (res.data as any).mainType !== 'string') {
-    throw new Error('响应格式异常')
-  }
+  if (!res.data) throw new Error('响应为空')
   return res.data
 }

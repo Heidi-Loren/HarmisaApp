@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import { View, Text, Radio, RadioGroup, Button, Label } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { saveConstitution } from '@/utils/constitution/save'
+import { getOrCreateDeviceId } from '@/utils/device'
 import './index.scss'
 
 type Question = { id: number; text: string; reverse?: boolean }
@@ -18,17 +19,6 @@ type Result = {
 
 const LABELS = ['从不', '偶尔', '有时', '经常', '总是']
 const STORAGE_KEY = 'constitutionAnswers'
-const DEVICE_ID_KEY = 'deviceId'
-
-// 生成/读取一个本地唯一 deviceId，当作临时 userId
-function getOrCreateDeviceId() {
-  let id = Taro.getStorageSync(DEVICE_ID_KEY)
-  if (!id) {
-    id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-    Taro.setStorageSync(DEVICE_ID_KEY, id)
-  }
-  return id as string
-}
 
 // 前端仅保留题面
 const QUESTIONS: Question[] = [
@@ -91,15 +81,17 @@ export default function ConstitutionPage() {
 
     setLoading(true)
     try {
-      const userId = getOrCreateDeviceId() // ← 临时用户标识
+      const userId = null // 还没登录就传 null
+      const deviceId = getOrCreateDeviceId()
       const payload = {
         userId,
+        deviceId, // ✅ 带上设备ID
         answers: answers.map((score, i) => ({ id: QUESTIONS[i].id, score })) as Answer[]
       }
 
       const res = await saveConstitution(payload)
-
       setResult(res as Result)
+
       if ((res as any).resultId) {
         Taro.setStorageSync('lastConstitutionResultId', (res as any).resultId)
       }

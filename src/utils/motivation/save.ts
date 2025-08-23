@@ -2,12 +2,18 @@
 import Taro from '@tarojs/taro'
 
 export interface MotivationAnswer { id: number; score: 1 | 2 | 3 | 4 }
-export interface MotivationSubmitPayload { userId?: string | null; answers: MotivationAnswer[] }
+
+export interface MotivationSubmitPayload {
+  userId?: string | null
+  deviceId?: string | null   // ✅ 新增：支持 deviceId
+  answers: MotivationAnswer[]
+}
+
 export interface MotivationSubmitResult {
   id: number | string | null
   createdAt?: string
   main?: string
-  ratio?: Record<'P'|'H'|'S'|'E', number>
+  ratio?: Record<'P' | 'H' | 'S' | 'E', number>
   secondary?: string[]
   algorithmVersion?: string
   error?: string
@@ -20,7 +26,7 @@ export async function saveMotivation(payload: MotivationSubmitPayload): Promise<
   const res = await Taro.request<MotivationSubmitResult>({
     url: `${API_BASE}/submit`,
     method: 'POST',
-    data: payload,
+    data: payload, // ✅ 包含 deviceId
     header: { 'Content-Type': 'application/json' },
     timeout: 20000,
   })
