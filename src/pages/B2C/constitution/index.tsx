@@ -20,7 +20,7 @@ type Result = {
 const LABELS = ['从不', '偶尔', '有时', '经常', '总是']
 const STORAGE_KEY = 'constitutionAnswers'
 
-// 前端仅保留题面
+// 仅保留题面（正反向在后端算法里处理）
 const QUESTIONS: Question[] = [
   { id: 1,  text: '您精力充沛吗？',           reverse: true },
   { id: 2,  text: '您容易疲乏吗？' },
@@ -70,6 +70,7 @@ export default function ConstitutionPage() {
   const onSubmit = async () => {
     setError('')
     setResult(null)
+
     if (!allAnswered) {
       const first = answers.findIndex(v => !v)
       const msg = `请完成第 ${first + 1} 题`
@@ -81,29 +82,37 @@ export default function ConstitutionPage() {
 
     setLoading(true)
     try {
-      const userId = null // 还没登录就传 null
+      const userId = null // 现在无登录
       const deviceId = getOrCreateDeviceId()
+
       const payload = {
         userId,
-        deviceId, // ✅ 带上设备ID
+        deviceId, // ✅ 带上设备ID，用于关联三类结果
         answers: answers.map((score, i) => ({ id: QUESTIONS[i].id, score })) as Answer[]
       }
 
+      // 1) 保存体质
       const res = await saveConstitution(payload)
       setResult(res as Result)
+
       if ((res as any).resultId) {
         Taro.setStorageSync('lastConstitutionResultId', (res as any).resultId)
       }
 
-    // ✅ 调用汇总接口，生成/更新 device_profiles
-      await Taro.request({
-      url: 'https://harmisa-app.vercel.app/api/profile/recompute',
-      method: 'POST',
-      data: { deviceId }
-    })
+      // 2) 汇总重算（device_profiles），失败也不阻断主流程
+      try {
+        await Taro.request({
+          url: 'https://harmisa-app.vercel.app/api/profile/recompute',
+          method: 'POST',
+          data: { deviceId },
+          header: { 'Content-Type': 'application/json' },
+          timeout: 20000
+        })
+      } catch {
+        // 汇总失败就静默；必要时可在这里提示“画像稍后自动更新”
+      }
 
-Taro.showToast({ title: '测评完成', icon: 'success' })
-
+      Taro.showToast({ title: '测评完成', icon: 'success' })
     } catch (e: any) {
       const msg = e?.message || '提交失败，请稍后重试'
       setError(msg)

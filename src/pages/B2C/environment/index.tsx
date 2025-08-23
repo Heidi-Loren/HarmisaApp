@@ -63,7 +63,7 @@ export default function EnvironmentPage() {
       const s = await Taro.getSetting()
       if (s.authSetting['scope.userLocation']) return true
       const r = await Taro.authorize({ scope: 'scope.userLocation' })
-      return r.errMsg?.includes('ok')
+      return !!r?.errMsg?.includes('ok')
     } catch {
       return false
     }
@@ -89,7 +89,7 @@ export default function EnvironmentPage() {
       if (!province) return
 
       setLoading(true)
-      const info = await resolveEnvByCity(province) // 后端做规范化
+      const info = await resolveEnvByCity(province) // 后端会做规范化
       setEnv(info)
     } catch {
       // 用户取消，无需提示
@@ -105,21 +105,29 @@ export default function EnvironmentPage() {
 
       await submitEnvResult({
         userId: null,
-        deviceId, // ✅ 带上设备 ID，便于和体质/动因归并
+        deviceId, // ✅ 设备 ID，便于和体质/动因归并
         city: env.city,
         province: env.province,
         season: env.season,
         weather: env.weather,
         tags: env.tags,
+        // 如果你在后端返回了 avoidTags 且希望落库，也可以一并传：
+        // avoidTags: env.avoidTags,
         algorithmVersion: env._debug?.version || '1.0.0',
       })
 
-      // ✅ 提交成功后触发一次汇总，把三层算法归并到 device_profiles
-      await Taro.request({
-        url: 'https://harmisa-app.vercel.app/api/profile/recompute',
-        method: 'POST',
-        data: { deviceId },
-      })
+      // ✅ 提交成功后触发一次汇总，把三层算法归并到 device_profiles（失败不阻断）
+      try {
+        await Taro.request({
+          url: 'https://harmisa-app.vercel.app/api/profile/recompute',
+          method: 'POST',
+          data: { deviceId },
+          header: { 'Content-Type': 'application/json' },
+          timeout: 20000,
+        })
+      } catch {
+        // 静默即可，必要时可提示“画像稍后自动更新”
+      }
 
       Taro.showToast({ title: '已保存', icon: 'success' })
     } catch (e: any) {
@@ -161,9 +169,7 @@ export default function EnvironmentPage() {
             <Text className='title'>建议方向</Text>
             <View className='tags'>
               {env.tags.map((t) => (
-                <Text key={t} className='tag'>
-                  {t}
-                </Text>
+                <Text key={t} className='tag'>{t}</Text>
               ))}
             </View>
           </View>
@@ -173,9 +179,7 @@ export default function EnvironmentPage() {
               <Text className='title'>忌口</Text>
               <View className='tags'>
                 {env.avoidTags.map((t) => (
-                  <Text key={t} className='tag warn'>
-                    {t}
-                  </Text>
+                  <Text key={t} className='tag warn'>{t}</Text>
                 ))}
               </View>
             </View>
@@ -188,15 +192,9 @@ export default function EnvironmentPage() {
       )}
 
       <View className='actions'>
-        <Button onClick={bootstrap} loading={loading} disabled={loading}>
-          刷新
-        </Button>
-        <Button onClick={pickCity} disabled={loading}>
-          选择地域
-        </Button>
-        <Button onClick={onSave} disabled={!env || loading}>
-          保存本次结果
-        </Button>
+        <Button onClick={bootstrap} loading={loading} disabled={loading}>刷新</Button>
+        <Button onClick={pickCity} disabled={loading}>选择地域</Button>
+        <Button onClick={onSave} disabled={!env || loading}>保存本次结果</Button>
       </View>
     </View>
   )

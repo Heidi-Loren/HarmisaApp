@@ -1,5 +1,5 @@
 // src/pages/B2C/motivation/index.tsx
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { View, Text, Radio, RadioGroup, Label, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
@@ -44,6 +44,7 @@ export default function MotivationPage() {
   const [error, setError] = useState('')
   const [result, setResult] = useState<ReturnType<typeof calculateMotivationProfile> | null>(null)
   const [explain, setExplain] = useState<ReturnType<typeof generateMotivationExplanation> | null>(null)
+  const submittingRef = useRef(false)
 
   const answeredCount = useMemo(() => answers.filter(Boolean).length, [answers])
   const allAnswered = answeredCount === QUESTIONS.length
@@ -55,6 +56,7 @@ export default function MotivationPage() {
   }
 
   async function onSubmit() {
+    if (submittingRef.current) return
     setError('')
     setResult(null)
     setExplain(null)
@@ -68,6 +70,7 @@ export default function MotivationPage() {
     }
 
     try {
+      submittingRef.current = true
       setLoading(true)
 
       // 1) 本地计算动因画像
@@ -87,12 +90,18 @@ export default function MotivationPage() {
         }))
       })
 
-      // 3) 提交成功后触发一次汇总，落到 device_profiles
-      await Taro.request({
-        url: 'https://harmisa-app.vercel.app/api/profile/recompute',
-        method: 'POST',
-        data: { deviceId }
-      })
+      // 3) 提交成功后触发一次汇总，落到 device_profiles（失败不阻断）
+      try {
+        await Taro.request({
+          url: 'https://harmisa-app.vercel.app/api/profile/recompute',
+          method: 'POST',
+          data: { deviceId },
+          header: { 'Content-Type': 'application/json' },
+          timeout: 20000
+        })
+      } catch {
+        // 静默忽略
+      }
 
       Taro.showToast({ title: '提交成功', icon: 'success' })
     } catch (e: any) {
@@ -101,6 +110,7 @@ export default function MotivationPage() {
       Taro.showToast({ title: msg, icon: 'none' })
     } finally {
       setLoading(false)
+      submittingRef.current = false
     }
   }
 
@@ -125,7 +135,6 @@ export default function MotivationPage() {
 
           <RadioGroup
             className='options'
-            // 用 any 兜底，避免 Taro 事件类型不匹配导致 TS 报错
             onChange={(e: any) => onChange(i, e?.detail?.value as string)}
           >
             {(['A', 'B', 'C', 'D'] as Option[]).map(opt => (
