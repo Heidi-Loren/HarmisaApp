@@ -2,14 +2,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
-// 用你已经写好的算法（保证和前端一致）
+// 保证与前端一致的算法
 import { calculateMotivationProfile, type Option } from '../../src/utils/motivation/score'
 
 const ALGO_VERSION = '1.0.0'
 
-// 环境变量（只在服务端）
+// 环境变量（仅服务端）
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY // 只用服务端的 Service Role Key
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY // 只用服务端 Service Role Key
 const supabase =
   supabaseUrl && supabaseKey
     ? createClient(supabaseUrl, supabaseKey, {

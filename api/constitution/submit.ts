@@ -49,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   try {
     const { userId, deviceId, answers } = (req.body ?? {}) as {
       userId?: string
-      deviceId?: string // ✅ 新增：前端传来的 deviceId（必填建议）
+      deviceId?: string // ✅ 前端传来的 deviceId
       answers?: Answer[]
     }
 

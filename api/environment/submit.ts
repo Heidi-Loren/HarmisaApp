@@ -22,12 +22,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } })
 
   try {
-    const { userId, deviceId, city, province, season, weather, tags, avoidTags, algorithmVersion } = req.body ?? {}
+    const {
+      userId,
+      deviceId,
+      city,
+      province,
+      season,
+      weather,
+      tags,
+      avoidTags,
+      algorithmVersion
+    } = req.body ?? {}
 
     const createdAt = new Date().toISOString()
     const row = {
       user_id: userId ?? null,
-      device_id: deviceId ?? null,         // ✅ 新增：保存设备ID
+      device_id: deviceId ?? null,         // ✅ 保存设备ID
       city,
       province,
       season,
