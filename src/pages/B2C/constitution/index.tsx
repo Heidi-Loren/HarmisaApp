@@ -91,11 +91,19 @@ export default function ConstitutionPage() {
 
       const res = await saveConstitution(payload)
       setResult(res as Result)
-
       if ((res as any).resultId) {
         Taro.setStorageSync('lastConstitutionResultId', (res as any).resultId)
       }
-      Taro.showToast({ title: '测评完成', icon: 'success' })
+
+    // ✅ 调用汇总接口，生成/更新 device_profiles
+      await Taro.request({
+      url: 'https://harmisa-app.vercel.app/api/profile/recompute',
+      method: 'POST',
+      data: { deviceId }
+    })
+
+Taro.showToast({ title: '测评完成', icon: 'success' })
+
     } catch (e: any) {
       const msg = e?.message || '提交失败，请稍后重试'
       setError(msg)

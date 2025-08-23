@@ -76,15 +76,22 @@ export default function MotivationPage() {
       const exp = generateMotivationExplanation(r)
       setExplain(exp)
 
-      // 2) 提交到你的后端（通过 utils/motivation/save.ts）
+      // 2) 提交到后端
       const deviceId = getOrCreateDeviceId()
       await saveMotivation({
-        userId: null,                         // 现在无登录
-        deviceId,                             // ✅ 带上设备ID
+        userId: null,            // 现阶段无登录
+        deviceId,                // ✅ 带上设备ID
         answers: (answers as Option[]).map((opt, i) => ({
           id: i + 1,
           score: optionToScore(opt)
         }))
+      })
+
+      // 3) 提交成功后触发一次汇总，落到 device_profiles
+      await Taro.request({
+        url: 'https://harmisa-app.vercel.app/api/profile/recompute',
+        method: 'POST',
+        data: { deviceId }
       })
 
       Taro.showToast({ title: '提交成功', icon: 'success' })
@@ -118,7 +125,8 @@ export default function MotivationPage() {
 
           <RadioGroup
             className='options'
-            onChange={(e) => onChange(i, e.detail.value)}
+            // 用 any 兜底，避免 Taro 事件类型不匹配导致 TS 报错
+            onChange={(e: any) => onChange(i, e?.detail?.value as string)}
           >
             {(['A', 'B', 'C', 'D'] as Option[]).map(opt => (
               <Label

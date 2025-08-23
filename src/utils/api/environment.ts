@@ -1,5 +1,6 @@
 // src/utils/api/environment.ts
 import Taro from '@tarojs/taro'
+import { apiUrl } from '@/utils/api/config'
 
 export type EnvInfo = {
   province: string
@@ -22,24 +23,22 @@ export type EnvInfo = {
 
 export interface EnvSubmitPayload {
   userId?: string | null
-  deviceId?: string | null   // ✅ 新增：前端带设备ID
+  deviceId?: string | null   // ✅ 前端带设备ID
   city?: string
   province?: string
   season?: string
   weather?: any
   tags?: string[]
-  avoidTags?: string[]       // ✅ 新增：可选忌口
+  avoidTags?: string[]       // ✅ 可选忌口
   algorithmVersion?: string
 }
 
-const API_BASE = 'https://harmisa-app.vercel.app/api/environment' // 你的后端域名
-
 export async function resolveEnvByLocation(lat: number, lon: number) {
   const res = await Taro.request<EnvInfo>({
-    url: `${API_BASE}/resolve`,
+    url: apiUrl('/api/environment/resolve'),
     method: 'GET',
     data: { lat, lon },
-    timeout: 20000
+    timeout: 20000,
   })
   if (res.statusCode < 200 || res.statusCode >= 300 || (res.data as any)?.error) {
     throw new Error((res.data as any)?.error || '环境获取失败')
@@ -49,10 +48,10 @@ export async function resolveEnvByLocation(lat: number, lon: number) {
 
 export async function resolveEnvByCity(city: string) {
   const res = await Taro.request<EnvInfo>({
-    url: `${API_BASE}/resolve`,
+    url: apiUrl('/api/environment/resolve'),
     method: 'GET',
     data: { city },
-    timeout: 20000
+    timeout: 20000,
   })
   if (res.statusCode < 200 || res.statusCode >= 300 || (res.data as any)?.error) {
     throw new Error((res.data as any)?.error || '环境获取失败')
@@ -62,11 +61,11 @@ export async function resolveEnvByCity(city: string) {
 
 export async function submitEnvResult(payload: EnvSubmitPayload) {
   const res = await Taro.request<{ resultId?: string | number; createdAt?: string; error?: string }>({
-    url: `${API_BASE}/submit`,
+    url: apiUrl('/api/environment/submit'),
     method: 'POST',
     data: payload, // ✅ 可包含 deviceId / avoidTags
     timeout: 20000,
-    header: { 'Content-Type': 'application/json' }
+    header: { 'Content-Type': 'application/json' },
   })
   if (res.statusCode < 200 || res.statusCode >= 300 || (res.data as any)?.error) {
     throw new Error((res.data as any)?.error || '保存失败')

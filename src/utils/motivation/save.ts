@@ -1,11 +1,12 @@
 // src/utils/motivation/save.ts
 import Taro from '@tarojs/taro'
+import { apiUrl } from '@/utils/api/config'
 
 export interface MotivationAnswer { id: number; score: 1 | 2 | 3 | 4 }
 
 export interface MotivationSubmitPayload {
   userId?: string | null
-  deviceId?: string | null   // ✅ 新增：支持 deviceId
+  deviceId?: string | null   // ✅ 支持 deviceId
   answers: MotivationAnswer[]
 }
 
@@ -19,12 +20,9 @@ export interface MotivationSubmitResult {
   error?: string
 }
 
-// 你的 Vercel 域名
-const API_BASE = 'https://harmisa-app.vercel.app/api/motivation'
-
 export async function saveMotivation(payload: MotivationSubmitPayload): Promise<MotivationSubmitResult> {
   const res = await Taro.request<MotivationSubmitResult>({
-    url: `${API_BASE}/submit`,
+    url: apiUrl('/api/motivation/submit'),
     method: 'POST',
     data: payload, // ✅ 包含 deviceId
     header: { 'Content-Type': 'application/json' },

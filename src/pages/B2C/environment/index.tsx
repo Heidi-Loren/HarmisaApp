@@ -6,16 +6,16 @@ import {
   resolveEnvByLocation,
   resolveEnvByCity,
   submitEnvResult,
-  type EnvInfo
+  type EnvInfo,
 } from '@/utils/api/environment'
 import { provinceToRegion } from '@/utils/climate/provinceToRegion'
 import { getOrCreateDeviceId } from '@/utils/device'
 import './index.scss'
 
-// 固定区域顺序
+// 固定区域顺序（展示用）
 const REGION_ORDER = ['华东', '华南', '华北', '西南', '西北'] as const
 
-// 反向映射：“区域 -> 省[]”，并做规范化
+// 反向映射：“区域 -> 省[]”
 const REGION_TO_PROVINCES: Record<string, string[]> = (() => {
   const map: Record<string, string[]> = {}
   REGION_ORDER.forEach((r) => (map[r] = []))
@@ -73,7 +73,7 @@ export default function EnvironmentPage() {
   async function pickCity() {
     try {
       const resRegion = await Taro.showActionSheet({
-        itemList: REGION_ORDER as unknown as string[]
+        itemList: REGION_ORDER as unknown as string[],
       })
       const region = REGION_ORDER[resRegion.tapIndex]
       if (!region) return
@@ -89,12 +89,10 @@ export default function EnvironmentPage() {
       if (!province) return
 
       setLoading(true)
-      const info = await resolveEnvByCity(province) // 后端会做规范化
+      const info = await resolveEnvByCity(province) // 后端做规范化
       setEnv(info)
-
-      // 想记住选择：Taro.setStorageSync('envPreferredCity', province)
     } catch {
-      // 用户取消
+      // 用户取消，无需提示
     } finally {
       setLoading(false)
     }
@@ -103,18 +101,26 @@ export default function EnvironmentPage() {
   async function onSave() {
     if (!env) return
     try {
-      const deviceId = getOrCreateDeviceId() // ✅ 带上设备ID
+      const deviceId = getOrCreateDeviceId()
+
       await submitEnvResult({
         userId: null,
-        deviceId, // ✅ 新增
+        deviceId, // ✅ 带上设备 ID，便于和体质/动因归并
         city: env.city,
         province: env.province,
         season: env.season,
         weather: env.weather,
         tags: env.tags,
-        avoidTags: env.avoidTags,
-        algorithmVersion: env._debug?.version || '1.0.0'
+        algorithmVersion: env._debug?.version || '1.0.0',
       })
+
+      // ✅ 提交成功后触发一次汇总，把三层算法归并到 device_profiles
+      await Taro.request({
+        url: 'https://harmisa-app.vercel.app/api/profile/recompute',
+        method: 'POST',
+        data: { deviceId },
+      })
+
       Taro.showToast({ title: '已保存', icon: 'success' })
     } catch (e: any) {
       Taro.showToast({ title: e?.message || '保存失败', icon: 'none' })
