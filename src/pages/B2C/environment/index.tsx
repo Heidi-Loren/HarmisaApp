@@ -10,6 +10,7 @@ import {
 } from '@/utils/api/environment'
 import { provinceToRegion } from '@/utils/climate/provinceToRegion'
 import { getOrCreateDeviceId } from '@/utils/device'
+import { cacheEnvironment } from '@/utils/profile/storage' // ✅ 新增：保存到本地供第二页读取
 import './index.scss'
 
 // 固定区域顺序（展示用）
@@ -27,6 +28,12 @@ const REGION_TO_PROVINCES: Record<string, string[]> = (() => {
   Object.keys(map).forEach((k) => map[k].sort())
   return map
 })()
+
+// ✅ 根据省份得到区域名（没有就兜底“未知”）
+function toRegionName(province?: string) {
+  const r = province ? (provinceToRegion as any)[province] : ''
+  return (r && String(r).trim()) || '未知'
+}
 
 export default function EnvironmentPage() {
   const [env, setEnv] = useState<EnvInfo | null>(null)
@@ -116,7 +123,14 @@ export default function EnvironmentPage() {
         algorithmVersion: env._debug?.version || '1.0.0',
       })
 
-      // ✅ 提交成功后触发一次汇总，把三层算法归并到 device_profiles（失败不阻断）
+      // ✅ 本地缓存（第二个界面会直接读取）
+      cacheEnvironment({
+        season: env.season,
+        region: toRegionName(env.province),
+        climateTags: env.tags || [],
+      })
+
+      // ✅ 可选：触发一次服务端画像重算（失败不阻断）
       try {
         await Taro.request({
           url: 'https://harmisa-app.vercel.app/api/profile/recompute',
@@ -126,7 +140,7 @@ export default function EnvironmentPage() {
           timeout: 20000,
         })
       } catch {
-        // 静默即可，必要时可提示“画像稍后自动更新”
+        // 静默即可
       }
 
       Taro.showToast({ title: '已保存', icon: 'success' })
@@ -186,7 +200,7 @@ export default function EnvironmentPage() {
           )}
 
           <Text className='foot'>
-            来源：Open‑Meteo · 版本 {env._debug?.version || '1.0.0'}
+            来源：Open-Meteo · 版本 {env._debug?.version || '1.0.0'}
           </Text>
         </>
       )}

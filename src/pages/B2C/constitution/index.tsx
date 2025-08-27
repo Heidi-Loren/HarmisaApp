@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { View, Text, Radio, RadioGroup, Button, Label } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { saveConstitution } from '@/utils/constitution/save'
+import { saveAndCacheConstitution } from '@/utils/profile/storage'
 import { getOrCreateDeviceId } from '@/utils/device'
 import './index.scss'
 
@@ -92,7 +92,7 @@ export default function ConstitutionPage() {
       }
 
       // 1) 保存体质
-      const res = await saveConstitution(payload)
+      const res = await saveAndCacheConstitution(payload)  // ✅ 提交 + 本地缓存
       setResult(res as Result)
 
       if ((res as any).resultId) {

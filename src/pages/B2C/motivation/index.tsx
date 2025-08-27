@@ -8,6 +8,7 @@ import { calculateMotivationProfile, type Option } from '@/utils/motivation/scor
 import { generateMotivationExplanation } from '@/utils/motivation/explain'
 import { saveMotivation } from '@/utils/motivation/save'
 import { getOrCreateDeviceId } from '@/utils/device'
+import { cacheMotivation } from '@/utils/profile/storage'   // ✅ 新增：提交后写入本地
 
 // —— 题目（12题）
 const QUESTIONS: string[] = [
@@ -90,7 +91,14 @@ export default function MotivationPage() {
         }))
       })
 
-      // 3) 提交成功后触发一次汇总，落到 device_profiles（失败不阻断）
+      // 3) ✅ 提交成功后写入本地，供第二界面读取
+      cacheMotivation({
+        main: r.main,
+        secondary: r.secondary,
+        ratio: r.ratio,
+      })
+
+      // 4) 可选：触发一次服务端画像重算（失败不阻断）
       try {
         await Taro.request({
           url: 'https://harmisa-app.vercel.app/api/profile/recompute',
