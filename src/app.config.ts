@@ -6,7 +6,8 @@ export default defineAppConfig({
     'pages/B2C/constitution/index',
     'pages/B2C/environment/index',
     'pages/B2C/motivation/index',
-    'pages/B2B/index'  
+    'pages/B2B/index',
+    'pages/profile/index'  
   ],
   window: {
     navigationBarBackgroundColor: '#ffffff',

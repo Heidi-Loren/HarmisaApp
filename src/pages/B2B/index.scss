@@ -103,3 +103,89 @@
 
 .list { flex: 1; }
 .list-inner { padding: 12px 12px 24px; } // ← 把原来给 ScrollView 的 padding 放到这里
+.weights { background:#fff; padding:10px 12px; border-bottom:1px solid #f0f0f0; }
+.weights .row { margin:6px 0; }
+.weights .meta { margin-top:4px; display:flex; justify-content:space-between; color:#888; font-size:12px; }
+.weights .reset { text-decoration: underline; }
+.toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background:#fff; border-bottom:1px solid #f0f0f0;
+  .btn { line-height: 28px; }
+  .muted { font-size: 12px; color:#888; }
+}
+
+/* Drawer */
+.drawer { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s; }
+.drawer.show { pointer-events: auto; opacity: 1; }
+.drawer-mask { position: absolute; inset: 0; background: rgba(0,0,0,.35); }
+.drawer-panel {
+  position: absolute; left:0; right:0; bottom:0;
+  background:#fff; border-top-left-radius:12px; border-top-right-radius:12px;
+  padding:12px; max-height: 70vh; overflow:auto;
+}
+.drawer-title { font-weight:600; font-size:16px; }
+.section { margin-top:10px; }
+.label { font-size:12px; color:#666; }
+.chips { margin-top:6px; display:flex; flex-wrap:wrap; gap:8px; }
+.chip { padding:4px 10px; border-radius:999px; background:#f2f2f2; font-size:12px; }
+.chip.active { background:#e6f2ff; }
+.inline { display:flex; gap:8px; align-items:center; margin-top:6px; }
+.ipt { flex:1; padding:8px 10px; border:1px solid #eee; border-radius:8px; }
+.btn.primary { background:#1677ff; color:#fff; }
+.btn.ghost { background:#fff; border:1px solid #eee; }
+.footer { margin-top:10px; display:flex; justify-content:space-between; }
+.disclaimer { margin-top:6px; font-size:11px; color:#999; line-height:1.4; }
+// .weights { background:#fff; padding:10px 12px; border-bottom:1px solid #f0f0f0; }
+// .weights .presets { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+// .weights .preset { font-size:12px; color:#1677ff; background:#f0f6ff; padding:2px 8px; border-radius:999px; }
+// .weights .row { margin:8px 0; }
+// .weights .row-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:2px; }
+// .weights .label { font-weight:600; }
+// .weights .inline { display:flex; align-items:center; gap:6px; }
+// .weights .mini { line-height: 26px; }
+// .weights .pct { width:54px; height:26px; padding:0 6px; border:1px solid #eee; border-radius:6px; text-align:center; }
+// .weights .meta { margin-top:4px; display:flex; justify-content:space-between; color:#888; font-size:12px; }
+// .weights .reset { text-decoration: underline; }
+
+
+.weights { background:#fff; padding:10px 12px; border-bottom:1px solid #f0f0f0; }
+.weights .presets { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+.weights .preset { font-size:12px; color:#1677ff; background:#f0f6ff; padding:2px 8px; border-radius:999px; }
+.weights .row { margin:8px 0; }
+.weights .row-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:2px; gap:8px; }
+.weights .label { font-weight:600; }
+.weights .inline { display:flex; align-items:center; gap:6px; }
+.weights .mini { line-height: 26px; }
+.weights .pct { width:54px; height:26px; padding:0 6px; border:1px solid #eee; border-radius:6px; text-align:center; }
+.weights .lock { font-size:12px; color:#888; }
+.weights .lock.on { color:#1677ff; }
+.weights .meta { margin-top:4px; display:flex; justify-content:space-between; color:#888; font-size:12px; }
+.weights .reset { text-decoration: underline; }
+
+
+.toolbar {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 12px; background:#fff; border-bottom:1px solid #f0f0f0;
+  .btn { line-height:28px; }
+  .muted { margin-left:6px; font-size:12px; color:#888; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+}
+/* 抽屉样式（如已存在可跳过） */
+.drawer { position:fixed; inset:0; pointer-events:none; opacity:0; transition:opacity .2s; }
+.drawer.show { pointer-events:auto; opacity:1; }
+.drawer-mask { position:absolute; inset:0; background:rgba(0,0,0,.35); }
+.drawer-panel { position:absolute; left:0; right:0; bottom:0; background:#fff; border-top-left-radius:12px; border-top-right-radius:12px; padding:12px; max-height:70vh; overflow:auto; }
+.drawer-title { font-weight:600; font-size:16px; }
+.section { margin-top:10px; }
+.label { font-size:12px; color:#666; }
+.chips { margin-top:6px; display:flex; flex-wrap:wrap; gap:8px; }
+.chip { padding:4px 10px; border-radius:999px; background:#f2f2f2; font-size:12px; }
+.chip.active { background:#e6f2ff; }
+.inline { display:flex; gap:8px; align-items:center; margin-top:6px; }
+.ipt { flex:1; padding:8px 10px; border:1px solid #eee; border-radius:8px; }
+.btn.primary { background:#1677ff; color:#fff; }
+.btn.ghost { background:#fff; border:1px solid #eee; }
+.footer { margin-top:10px; display:flex; justify-content:space-between; }
+
+.modebar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#fff;border-bottom:1px solid #f0f0f0}
+.modebar .primary{background:#1677ff;color:#fff}
+.modebar .muted{font-size:12px;color:#888}
