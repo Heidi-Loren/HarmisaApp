@@ -17,21 +17,25 @@ export type Weights = { constitution: number; environment: number; drivers: numb
 export type AutoWeightsResult = { weights: Weights; why: string[] }
 
 const clamp01 = (x:number)=> Math.max(0, Math.min(1, x))
-const sigmoid = (x:number)=> 1/(1+Math.exp(-x))
+const sigmoid  = (x:number)=> 1/(1+Math.exp(-x))
 const decay = (age:number|undefined, halfLife:number)=> {
-  if (age==null) return 1;
-  return Math.pow(0.5, Math.max(0, age)/halfLife);
+  if (age==null) return 1
+  return Math.pow(0.5, Math.max(0, age)/halfLife)
 }
 
-// —— 指标
+// ——— 指标：体质可信度
 function rConst(profile: UserProfile, days?: number) {
   const map = profile.constitution.scoreMap || {}
   const main = map[profile.constitution.main] ?? 0
-  const second = Math.max(...Object.entries(map).filter(([k])=>k!==profile.constitution.main).map(([,v])=>v), 0)
-  const conf = clamp01(sigmoid(( (main - second) - 10) / 10))
+  const second = Math.max(
+    ...Object.entries(map).filter(([k]) => k !== profile.constitution.main).map(([,v]) => v),
+    0
+  )
+  const conf = clamp01(sigmoid(((main - second) - 10) / 10))
   return conf * decay(days, 180) // 半年折半
 }
 
+// ——— 指标：环境强度
 function rEnv(profile: UserProfile, h?: AutoHints) {
   const zSum = Math.abs(h?.tempZ||0) + Math.abs(h?.humidityZ||0) + Math.abs(h?.windZ||0)
   const fromZ = clamp01(zSum / 6)
@@ -41,6 +45,7 @@ function rEnv(profile: UserProfile, h?: AutoHints) {
   return strength * decay(h?.weatherHoursSince, 24) // 一天折半
 }
 
+// ——— 指标：动因集中度（含“今天想吃”加成）
 function rMot(profile: UserProfile, h?: AutoHints) {
   const r = profile.motivation.ratio
   const total = (r.P||0)+(r.H||0)+(r.S||0)+(r.E||0) || 1
@@ -51,16 +56,17 @@ function rMot(profile: UserProfile, h?: AutoHints) {
   return clamp01(focus + craveBoost) * decay(h?.motivationDaysSince, 60) // 两个月折半
 }
 
-// —— 主函数：先验 + 证据分配
+// ——— 主函数：先验 + 证据分配
 export function computeAutoWeights(profile: UserProfile, hints?: AutoHints): AutoWeightsResult {
   const rc = rConst(profile, hints?.constitutionDaysSince)
   const re = rEnv(profile, hints)
   const rm = rMot(profile, hints)
 
-  // 先验下限（可配置）
+  // 先验下限（时间尺度）
   const FLOOR = { c: 0.45, e: 0.25, m: 0.20 }
   const leftover = 1 - (FLOOR.c + FLOOR.e + FLOOR.m) // = 0.10
 
+  // 按信号分配剩余
   const sumR = (rc + re + rm) || 1
   let wc = FLOOR.c + leftover * (rc / sumR)
   let we = FLOOR.e + leftover * (re / sumR)
@@ -70,14 +76,31 @@ export function computeAutoWeights(profile: UserProfile, hints?: AutoHints): Aut
   we = Math.min(0.55, we)
   wm = Math.min(0.45, wm)
 
-  // 轻微归一避免浮点误差
-  const s = wc+we+wm; wc/=s; we/=s; wm/=s;
+  // 轻微归一（防浮点误差）
+  const s = wc + we + wm; wc/=s; we/=s; wm/=s;
 
+  // —— 解释文案：与均值比较给“↑/↓”，保证至少1条
   const why: string[] = []
-  if (rc > 0.6)  why.push('体质主副差大/测评新鲜 → 体质↑')
-  if (re > 0.5)  why.push('天气异常或调理标签强 → 环境↑')
-  if (rm > 0.5)  why.push('动因集中或“今天想吃” → 动因↑')
+  const mean = (rc + re + rm) / 3
+  const delta = 0.08 // 阈值：比均值高/低 8% 才提示
+
+  if (rc >= mean + delta)      why.push('体质差值大 → 体质↑')
+  else if (rc <= mean - delta) why.push('体质信号弱 → 体质↓')
+
+  if (re >= mean + delta)      why.push('天气/调理信号强 → 环境↑')
+  else if (re <= mean - delta) why.push('天气平稳 → 环境↓')
+
+  if (rm >= mean + delta)      why.push('动因集中/今天想吃 → 动因↑')
+  else if (rm <= mean - delta) why.push('动因分散/过期 → 动因↓')
+
   if (!why.length)  why.push('按先验下限分配（体质为根基）')
 
-  return { weights: { constitution: +wc.toFixed(2), environment: +we.toFixed(2), drivers: +wm.toFixed(2) }, why }
+  return {
+    weights: {
+      constitution: +wc.toFixed(2),
+      environment:  +we.toFixed(2),
+      drivers:      +wm.toFixed(2),
+    },
+    why
+  }
 }

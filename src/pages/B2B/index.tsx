@@ -1,3 +1,4 @@
+// src/pages/B2B/index.tsx
 import React, { useState, useMemo } from "react";
 import { View, Text, ScrollView, Button } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
@@ -15,11 +16,11 @@ import WeightControls, { Weights } from "@/components/WeightControls";
 import AllergenDrawer from "@/components/AllergenDrawer";
 import TagPickerDrawer from "@/components/TagPickerDrawer";
 
-import { computeAutoWeights } from "@/utils/recommendation/autoWeights"; // ✅ 自动权重（带 hints）
+import { computeAutoWeights } from "@/utils/recommendation/autoWeights";
 
 import "./index.scss";
 
-// —— 按设备分 key
+// —— 设备分 key
 function makeKeys(deviceId: string) {
   return {
     weights:   `pref_weights:${deviceId}`,
@@ -79,7 +80,7 @@ function matchAny(dish: Dish, words: string[], dict: Record<string,string[]>) {
   return hits;
 }
 
-// —— 尝试从本地记录里算“距今”工具（没有就返回 undefined）
+// —— 距今工具
 function daysSince(iso?: string) {
   if (!iso) return undefined;
   const t = new Date(iso).getTime();
@@ -108,7 +109,7 @@ export default function B2BPage() {
 
   const [drawerAllergen, setDrawerAllergen] = useState(false);
   const [drawerDislike, setDrawerDislike] = useState(false);
-  const [drawerCrave, setDrawerCrave] = useState(false);
+  const [drawerCrave,   setDrawerCrave]   = useState(false);
 
   useDidShow(() => {
     try {
@@ -146,12 +147,12 @@ export default function B2BPage() {
       const savedC = Taro.getStorageSync(k.craves);
       if (Array.isArray(savedC)) setCraves(savedC as string[]);
 
-      // 3) 读取各层本地时间（如果你存过 createdAt）
+      // 3) 读取时间戳（如存在）
       const constStore = Taro.getStorageSync('constitution_result') as any;
       const motStore   = Taro.getStorageSync('motivation_result') as any;
       const envStore   = Taro.getStorageSync('env_context') as any;
 
-      // 4) 若是自动模式 → 计算自动权重（带 hints）
+      // 4) 自动模式 → 计算权重
       const m = (savedMode === 'manual' || savedMode === 'auto') ? savedMode : 'auto';
       if (m === 'auto') {
         const { weights: w, why } = computeAutoWeights(prof, {
@@ -159,7 +160,6 @@ export default function B2BPage() {
           constitutionDaysSince: daysSince(constStore?.createdAt),
           motivationDaysSince:  daysSince(motStore?.createdAt),
           craveCount: (savedC as string[] | undefined)?.length ?? 0,
-          // 有 tempZ/humidityZ/windZ 或 tagStrength 就一并传入
         });
         setWeights(w as Weights);
         setAutoWhy(why);
@@ -185,7 +185,7 @@ export default function B2BPage() {
       }
     }, [profile, weights]);
 
-  // —— 1) 过敏硬过滤 → 2) 不爱/想吃软加权排序
+  // —— 过敏硬过滤 → 不爱/想吃软加权排序
   const recommended = useMemo(() => {
     if (!computed.length) return [];
     const noAllergen = allergens.length
@@ -195,7 +195,7 @@ export default function B2BPage() {
     const adjusted = noAllergen.map(d => {
       const base = d.finalScore ?? 0;
       const dislikeHits = matchAny(d, dislikes, PREF_SYNS);
-      const craveHits = matchAny(d, craves, PREF_SYNS);
+      const craveHits   = matchAny(d, craves,   PREF_SYNS);
       const penalty = Math.min(0.20, 0.08 * dislikeHits);
       const boost   = Math.min(0.25, 0.10 * craveHits);
       const adj = Math.max(0, +(base * (1 - penalty) * (1 + boost)).toFixed(1));
@@ -228,9 +228,9 @@ export default function B2BPage() {
   // —— 模式切换
   function switchToAuto() {
     if (!profile) return;
-    const envStore = Taro.getStorageSync('env_context') as any;
-    const constStore = Taro.getStorageSync('constitution_result') as any;
-    const motStore   = Taro.getStorageSync('motivation_result') as any;
+    const envStore  = Taro.getStorageSync('env_context') as any;
+    const constStore= Taro.getStorageSync('constitution_result') as any;
+    const motStore  = Taro.getStorageSync('motivation_result') as any;
 
     const { weights: w, why } = computeAutoWeights(profile, {
       weatherHoursSince: hoursSince(envStore?.createdAt) ?? 1,
@@ -239,7 +239,11 @@ export default function B2BPage() {
       craveCount: craves.length,
     });
     setMode('auto'); setAutoWhy(why); setWeights(w as Weights);
-    if (deviceId) { const k = makeKeys(deviceId); Taro.setStorageSync(k.mode, 'auto'); Taro.setStorageSync(k.weights, w); }
+    if (deviceId) {
+      const k = makeKeys(deviceId);
+      Taro.setStorageSync(k.mode, 'auto');
+      Taro.setStorageSync(k.weights, w);
+    }
   }
   function switchToManual() {
     setMode('manual');
@@ -260,11 +264,15 @@ export default function B2BPage() {
         )}
       </View>
 
-      {/* 模式切换 + 解释 */}
+      {/* 模式切换 + 原因文案 */}
       <View className="modebar">
         <Button size="mini" className={mode==='auto' ? 'primary' : ''} onClick={switchToAuto}>自动权重</Button>
         <Button size="mini" className={mode==='manual' ? 'primary' : ''} onClick={switchToManual}>手动</Button>
-        {mode==='auto' && !!autoWhy.length && <Text className="muted">自动：{autoWhy.join(' / ')}</Text>}
+        <Text className="reason">
+          {mode==='auto'
+            ? (autoWhy.length ? `自动：${autoWhy.slice(0,2).join(' / ')}` : '自动：计算中…')
+            : '手动：可微调权重'}
+        </Text>
       </View>
 
       <WeightControls
@@ -295,7 +303,9 @@ export default function B2BPage() {
                 <View className="card-head">
                   <Text className="name">{idx + 1}. {dish.name}</Text>
                   {"_adjScore" in dish && (
-                    <Text className="score">得分 {(dish as any)._adjScore?.toFixed ? (dish as any)._adjScore.toFixed(1) : (dish as any)._adjScore}</Text>
+                    <Text className="score">
+                      得分 {(dish as any)._adjScore?.toFixed ? (dish as any)._adjScore.toFixed(1) : (dish as any)._adjScore}
+                    </Text>
                   )}
                 </View>
 
