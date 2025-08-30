@@ -1,76 +1,83 @@
+// src/utils/recommendation/autoWeights.ts
 import type { UserProfile } from '@/utils/profile/types'
 
-// —— 外部可选环境提示（有则更准，没有也能跑）
-export type AutoEnvHints = {
+export type AutoHints = {
+  // 环境
   tempZ?: number; humidityZ?: number; windZ?: number;
-  tagStrength?: number; // 0..1，不传就按 climateTags 数量估
+  tagStrength?: number;         // 0..1；不传就按 climateTags 数量估
+  weatherHoursSince?: number;   // 天气数据新鲜度（小时）
+  // 体质 & 动因
+  constitutionDaysSince?: number;  // 体质测评距今天数
+  motivationDaysSince?: number;    // 动因测评距今天数
+  // 即时偏好
+  craveCount?: number;             // “今天想吃”命中词个数
 }
 
-// 内部权重类型（与 WeightControls.Weights 结构相同）
-export type AutoWeights = { constitution: number; environment: number; drivers: number }
+export type Weights = { constitution: number; environment: number; drivers: number }
+export type AutoWeightsResult = { weights: Weights; why: string[] }
 
 const clamp01 = (x:number)=> Math.max(0, Math.min(1, x))
 const sigmoid = (x:number)=> 1/(1+Math.exp(-x))
-const norm = (w:AutoWeights)=> {
-  const s = w.constitution + w.environment + w.drivers || 1
-  return {
-    constitution: +(w.constitution / s).toFixed(2),
-    environment:  +(w.environment  / s).toFixed(2),
-    drivers:      +(w.drivers      / s).toFixed(2),
-  }
+const decay = (age:number|undefined, halfLife:number)=> {
+  if (age==null) return 1;
+  return Math.pow(0.5, Math.max(0, age)/halfLife);
 }
 
-function focusFromMotivationRatio(r: Record<'P'|'H'|'S'|'E', number>) {
-  const maxV = Math.max(r.P||0, r.H||0, r.S||0, r.E||0)
-  return clamp01(maxV / 100) // 0..1
-}
-
-function constitutionConfidence(profile: UserProfile) {
+// —— 指标
+function rConst(profile: UserProfile, days?: number) {
   const map = profile.constitution.scoreMap || {}
-  const mainScore = map[profile.constitution.main] ?? 0
-  const secondScore = Math.max(
-    ...Object.entries(map)
-      .filter(([k]) => k !== profile.constitution.main)
-      .map(([,v]) => v), 0
-  )
-  const diff = mainScore - secondScore // 常见 0..40
-  return clamp01(sigmoid((diff - 10)/10)) // ~0.27..0.88
+  const main = map[profile.constitution.main] ?? 0
+  const second = Math.max(...Object.entries(map).filter(([k])=>k!==profile.constitution.main).map(([,v])=>v), 0)
+  const conf = clamp01(sigmoid(( (main - second) - 10) / 10))
+  return conf * decay(days, 180) // 半年折半
 }
 
-function environmentExtreme(profile: UserProfile, hints?: AutoEnvHints) {
-  if (hints && (hints.tempZ!=null || hints.humidityZ!=null || hints.windZ!=null)) {
-    const z = Math.abs(hints.tempZ||0) + Math.abs(hints.humidityZ||0) + Math.abs(hints.windZ||0)
-    return clamp01(z/6)
-  }
+function rEnv(profile: UserProfile, h?: AutoHints) {
+  const zSum = Math.abs(h?.tempZ||0) + Math.abs(h?.humidityZ||0) + Math.abs(h?.windZ||0)
+  const fromZ = clamp01(zSum / 6)
   const tags = profile.climate.climateTags || []
-  const strength = hints?.tagStrength ?? Math.min(1, tags.length / 6)
-  return clamp01(strength)
+  const tagStrength = h?.tagStrength ?? Math.min(1, tags.length / 6)
+  const strength = clamp01(fromZ * 0.7 + tagStrength * 0.3)
+  return strength * decay(h?.weatherHoursSince, 24) // 一天折半
 }
 
-export type AutoWeightsResult = { weights: AutoWeights; why: string[] }
+function rMot(profile: UserProfile, h?: AutoHints) {
+  const r = profile.motivation.ratio
+  const total = (r.P||0)+(r.H||0)+(r.S||0)+(r.E||0) || 1
+  const p = [r.P/total, r.H/total, r.S/total, r.E/total]
+  const H = -p.reduce((s,x)=> s + (x>0? x*Math.log(x):0), 0)
+  const focus = clamp01(1 - H/Math.log(4)) // 0..1
+  const craveBoost = Math.min(0.3, 0.05 * (h?.craveCount || 0))
+  return clamp01(focus + craveBoost) * decay(h?.motivationDaysSince, 60) // 两个月折半
+}
 
-export function computeAutoWeights(profile: UserProfile, hints?: AutoEnvHints): AutoWeightsResult {
-  const cConf = constitutionConfidence(profile)               // 0..1
-  const eExt  = environmentExtreme(profile, hints)            // 0..1
-  const mFocus= focusFromMotivationRatio(profile.motivation.ratio) // 0..1
+// —— 主函数：先验 + 证据分配
+export function computeAutoWeights(profile: UserProfile, hints?: AutoHints): AutoWeightsResult {
+  const rc = rConst(profile, hints?.constitutionDaysSince)
+  const re = rEnv(profile, hints)
+  const rm = rMot(profile, hints)
 
-  // 线性映射到合理区间，然后统一归一
-  let wc = 0.40 + 0.25 * cConf   // 0.40..0.65
-  let we = 0.20 + 0.35 * eExt    // 0.20..0.55
-  let wm = 0.10 + 0.30 * mFocus  // 0.10..0.40
+  // 先验下限（可配置）
+  const FLOOR = { c: 0.45, e: 0.25, m: 0.20 }
+  const leftover = 1 - (FLOOR.c + FLOOR.e + FLOOR.m) // = 0.10
 
-  // 软边界
-  wc = Math.max(0.45, wc)
+  const sumR = (rc + re + rm) || 1
+  let wc = FLOOR.c + leftover * (rc / sumR)
+  let we = FLOOR.e + leftover * (re / sumR)
+  let wm = FLOOR.m + leftover * (rm / sumR)
+
+  // 上限保护
   we = Math.min(0.55, we)
-  wm = Math.min(0.40, wm)
+  wm = Math.min(0.45, wm)
 
-  const weights = norm({ constitution: wc, environment: we, drivers: wm })
+  // 轻微归一避免浮点误差
+  const s = wc+we+wm; wc/=s; we/=s; wm/=s;
 
   const why: string[] = []
-  if (cConf > 0.6)  why.push('体质主副差明显 → 体质权重↑')
-  if (eExt  > 0.5)  why.push('天气/季节影响较强 → 环境权重↑')
-  if (mFocus> 0.5)  why.push('动因集中 → 动因权重↑')
-  if (!why.length)  why.push('使用基准权重（体质为根基）')
+  if (rc > 0.6)  why.push('体质主副差大/测评新鲜 → 体质↑')
+  if (re > 0.5)  why.push('天气异常或调理标签强 → 环境↑')
+  if (rm > 0.5)  why.push('动因集中或“今天想吃” → 动因↑')
+  if (!why.length)  why.push('按先验下限分配（体质为根基）')
 
-  return { weights, why }
+  return { weights: { constitution: +wc.toFixed(2), environment: +we.toFixed(2), drivers: +wm.toFixed(2) }, why }
 }

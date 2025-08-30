@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { View, Text, ScrollView, Button } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 
@@ -14,15 +14,16 @@ import { getOrCreateDeviceId } from "@/utils/device";
 import WeightControls, { Weights } from "@/components/WeightControls";
 import AllergenDrawer from "@/components/AllergenDrawer";
 import TagPickerDrawer from "@/components/TagPickerDrawer";
-import { computeAutoWeights } from "@/utils/recommendation/autoWeights"; // ✅ 自动权重
+
+import { computeAutoWeights } from "@/utils/recommendation/autoWeights"; // ✅ 自动权重（带 hints）
 
 import "./index.scss";
 
-// —— 根据设备区分偏好存储
+// —— 按设备分 key
 function makeKeys(deviceId: string) {
   return {
     weights:   `pref_weights:${deviceId}`,
-    mode:      `pref_weight_mode:${deviceId}`, // ✅ 自动/手动
+    mode:      `pref_weight_mode:${deviceId}`, // 'auto' | 'manual'
     allergens: `pref_allergens:${deviceId}`,
     dislikes:  `pref_dislikes:${deviceId}`,
     craves:    `pref_craves:${deviceId}`,
@@ -78,13 +79,27 @@ function matchAny(dish: Dish, words: string[], dict: Record<string,string[]>) {
   return hits;
 }
 
+// —— 尝试从本地记录里算“距今”工具（没有就返回 undefined）
+function daysSince(iso?: string) {
+  if (!iso) return undefined;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return undefined;
+  return Math.max(0, (Date.now() - t) / (24 * 3600 * 1000));
+}
+function hoursSince(iso?: string) {
+  if (!iso) return undefined;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return undefined;
+  return Math.max(0, (Date.now() - t) / (3600 * 1000));
+}
+
 export default function B2BPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [source, setSource] = useState<"storage" | "mock">("mock");
 
   const [deviceId, setDeviceId] = useState<string>("");
-  const [mode, setMode] = useState<'auto'|'manual'>('auto');        // ✅ 模式
-  const [autoWhy, setAutoWhy] = useState<string[]>([]);             // ✅ 解释
+  const [mode, setMode] = useState<'auto'|'manual'>('auto');
+  const [autoWhy, setAutoWhy] = useState<string[]>([]);
   const [weights, setWeights] = useState<Weights>({ constitution: .5, environment: .3, drivers: .2 });
 
   const [allergens, setAllergens] = useState<string[]>([]);
@@ -97,7 +112,7 @@ export default function B2BPage() {
 
   useDidShow(() => {
     try {
-      // 画像
+      // 1) 画像
       const p = readUserProfileFromStorage();
       let prof: UserProfile;
       if (p) { setProfile(p); setSource("storage"); prof = p; }
@@ -111,7 +126,7 @@ export default function B2BPage() {
         setSource("mock");
       }
 
-      // 偏好 + 模式
+      // 2) 偏好 + 模式
       const id = getOrCreateDeviceId();
       setDeviceId(id);
       const k = makeKeys(id);
@@ -131,10 +146,21 @@ export default function B2BPage() {
       const savedC = Taro.getStorageSync(k.craves);
       if (Array.isArray(savedC)) setCraves(savedC as string[]);
 
-      // 若是自动模式 → 立刻用自动权重覆盖
+      // 3) 读取各层本地时间（如果你存过 createdAt）
+      const constStore = Taro.getStorageSync('constitution_result') as any;
+      const motStore   = Taro.getStorageSync('motivation_result') as any;
+      const envStore   = Taro.getStorageSync('env_context') as any;
+
+      // 4) 若是自动模式 → 计算自动权重（带 hints）
       const m = (savedMode === 'manual' || savedMode === 'auto') ? savedMode : 'auto';
       if (m === 'auto') {
-        const { weights: w, why } = computeAutoWeights(prof);
+        const { weights: w, why } = computeAutoWeights(prof, {
+          weatherHoursSince: hoursSince(envStore?.createdAt) ?? 1,
+          constitutionDaysSince: daysSince(constStore?.createdAt),
+          motivationDaysSince:  daysSince(motStore?.createdAt),
+          craveCount: (savedC as string[] | undefined)?.length ?? 0,
+          // 有 tempZ/humidityZ/windZ 或 tagStrength 就一并传入
+        });
         setWeights(w as Weights);
         setAutoWhy(why);
         Taro.setStorageSync(k.weights, w);
@@ -179,7 +205,7 @@ export default function B2BPage() {
     return adjusted.slice(0, 12);
   }, [computed, allergens, dislikes, craves]);
 
-  // —— 应用偏好并持久化
+  // —— 偏好持久化
   function applyAllergens(next: string[]) {
     setAllergens(next);
     if (deviceId) Taro.setStorageSync(makeKeys(deviceId).allergens, next);
@@ -199,10 +225,19 @@ export default function B2BPage() {
     Taro.showToast({ title: "今天想吃已应用", icon: "none" });
   }
 
-  // —— 切换模式
+  // —— 模式切换
   function switchToAuto() {
     if (!profile) return;
-    const { weights: w, why } = computeAutoWeights(profile);
+    const envStore = Taro.getStorageSync('env_context') as any;
+    const constStore = Taro.getStorageSync('constitution_result') as any;
+    const motStore   = Taro.getStorageSync('motivation_result') as any;
+
+    const { weights: w, why } = computeAutoWeights(profile, {
+      weatherHoursSince: hoursSince(envStore?.createdAt) ?? 1,
+      constitutionDaysSince: daysSince(constStore?.createdAt),
+      motivationDaysSince:  daysSince(motStore?.createdAt),
+      craveCount: craves.length,
+    });
     setMode('auto'); setAutoWhy(why); setWeights(w as Weights);
     if (deviceId) { const k = makeKeys(deviceId); Taro.setStorageSync(k.mode, 'auto'); Taro.setStorageSync(k.weights, w); }
   }
@@ -240,7 +275,7 @@ export default function B2BPage() {
         }}
       />
 
-      {/* 工具条：三个偏好入口 + 摘要 */}
+      {/* 偏好入口 */}
       <View className="toolbar">
         <Button className="btn" size="mini" onClick={() => setDrawerAllergen(true)}>过敏</Button>
         <Button className="btn" size="mini" onClick={() => setDrawerDislike(true)}>不爱</Button>
@@ -290,7 +325,7 @@ export default function B2BPage() {
         </View>
       </ScrollView>
 
-      {/* 三个抽屉 */}
+      {/* 抽屉 */}
       <AllergenDrawer
         visible={drawerAllergen}
         value={allergens}
