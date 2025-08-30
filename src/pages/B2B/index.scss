@@ -5,31 +5,46 @@
 .title { font-size:16px; font-weight:600; }
 .subtitle { display:block; margin-top:4px; font-size:12px; color:#888; }
 
-.modebar { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+.modebar{display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;
   padding:6px 12px; background:#fff; border-bottom:1px solid #f0f0f0;
 }
-.modebar .primary { background:#1677ff; color:#fff; }
-.modebar .reason { font-size:12px; color:#666; line-height:18px; }
+.modebar .primary{ background:#1677ff; color:#fff; }
+.reason-wrap{ display:flex; flex-direction:column; gap:2px; }
+.reason-main{ font-size:12px; color:#333; }
+.reason-sub{ font-size:11px; color:#888; }
+.reason-why{ font-size:11px; color:#666; }
 
 .toolbar { display:flex; align-items:center; gap:8px; padding:8px 12px;
   background:#fff; border-bottom:1px solid #f0f0f0;
 }
-.toolbar .btn { background:#f6f7f9; }
-.toolbar .muted { font-size:12px; color:#888; }
+.toolbar .btn{ background:#f6f7f9; }
+.toolbar .muted{ font-size:12px; color:#888; }
 
-.list { height: calc(100vh - 180px); } /* 视口微调，按你项目实际改 */
-.list-inner { padding:8px 12px; } /* 把 padding 放内部，避免 scroll-view 警告 */
+.list { height: calc(100vh - 200px); }
+.list-inner { padding:8px 12px; }
 
-.card { background:#fff; border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:10px; }
-.card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
-.name { font-weight:600; }
-.score { font-size:12px; color:#555; }
+.card{ background:#fff; border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:10px; }
+.card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.name{ font-weight:600; }
+.score{ font-size:12px; color:#555; }
+.tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+.chip{ font-size:12px; padding:2px 6px; background:#f2f3f5; border-radius:20px; color:#555; }
+.reason-title{ font-size:12px; color:#666; margin-bottom:4px; }
+.reason-list{ display:flex; flex-direction:column; gap:2px; font-size:12px; color:#666; }
+.empty{ text-align:center; color:#888; padding:20px 0; }
 
-.tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
-.chip { font-size:12px; padding:2px 6px; background:#f2f3f5; border-radius:20px; color:#555; }
-
-.reason-title { font-size:12px; color:#666; margin-bottom:4px; }
-.reason-list { display:flex; flex-direction:column; gap:2px; font-size:12px; color:#666; }
-
-.empty { text-align:center; color:#888; padding:20px 0; }
-.bold { font-weight:600; }
+/* WeightControls 内部 */
+.weights{ background:#fff; border-bottom:1px solid #f0f0f0; }
+.presets{ display:flex; align-items:center; gap:8px; padding:8px 12px; border-top:1px solid #f7f7f7; }
+.presets .label{ font-size:12px; color:#666; }
+.row{ padding:8px 12px; }
+.row-head{ display:flex; align-items:center; gap:8px; }
+.row-name{ width:36px; color:#333; }
+.lock{ display:flex; align-items:center; gap:4px; margin-left:4px; }
+.muted{ font-size:12px; color:#888; }
+.delta{ background:#f6f7f9; }
+.pct{ width:28px; text-align:right; font-variant-numeric: tabular-nums; }
+.pct-suffix{ color:#888; }
+.slider{ margin:8px 0 4px; }
+.sum{ padding:0 12px 8px; font-size:12px; color:#666; }
+.bold{ font-weight:600; }

@@ -1,3 +1,4 @@
+// src/components/WeightControls.tsx
 import { useEffect, useRef, useState } from "react";
 import { View, Text, Slider, Button, Input, Switch } from "@tarojs/components";
 
@@ -114,12 +115,13 @@ export default function WeightControls({
 
   return (
     <View className="weights">
-      {/* 预设 */}
+      {/* 预设（文案简化） */}
       <View className="presets">
-        <Text className="preset" onClick={() => applyPreset({ constitution: .5, environment: .3, drivers: .2 })}>均衡 50/30/20</Text>
-        <Text className="preset" onClick={() => applyPreset({ constitution: .6, environment: .25, drivers: .15 })}>体质优先</Text>
-        <Text className="preset" onClick={() => applyPreset({ constitution: .35, environment: .5, drivers: .15 })}>环境优先</Text>
-        <Text className="preset" onClick={() => applyPreset({ constitution: .4, environment: .2, drivers: .4 })}>动因优先</Text>
+        <Text className="label">预设：</Text>
+        <Text className="preset" onClick={() => applyPreset({ constitution: .5,  environment: .3,  drivers: .2  })}>均衡</Text>
+        <Text className="preset" onClick={() => applyPreset({ constitution: .6,  environment: .25, drivers: .15 })}>体质优先</Text>
+        <Text className="preset" onClick={() => applyPreset({ constitution: .45, environment: .45, drivers: .10 })}>环境优先</Text>
+        <Text className="preset" onClick={() => applyPreset({ constitution: .45, environment: .25, drivers: .30 })}>动因优先</Text>
       </View>
 
       {KEYS.map((key) => (

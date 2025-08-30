@@ -17,7 +17,6 @@ import AllergenDrawer from "@/components/AllergenDrawer";
 import TagPickerDrawer from "@/components/TagPickerDrawer";
 
 import { computeAutoWeights } from "@/utils/recommendation/autoWeights";
-
 import "./index.scss";
 
 // —— 设备分 key
@@ -264,15 +263,28 @@ export default function B2BPage() {
         )}
       </View>
 
-      {/* 模式切换 + 原因文案 */}
+      {/* 模式切换 + 解释 */}
       <View className="modebar">
         <Button size="mini" className={mode==='auto' ? 'primary' : ''} onClick={switchToAuto}>自动权重</Button>
         <Button size="mini" className={mode==='manual' ? 'primary' : ''} onClick={switchToManual}>手动</Button>
-        <Text className="reason">
-          {mode==='auto'
-            ? (autoWhy.length ? `自动：${autoWhy.slice(0,2).join(' / ')}` : '自动：计算中…')
-            : '手动：可微调权重'}
-        </Text>
+
+        <View className="reason-wrap">
+          {mode==='auto' ? (
+            <>
+              <Text className="reason-main">
+                {`自动：体质 ${(weights.constitution*100).toFixed(0)}%｜环境 ${(weights.environment*100).toFixed(0)}%｜动因 ${(weights.drivers*100).toFixed(0)}%`}
+              </Text>
+              <Text className="reason-sub">
+                说明：体质为基，其次环境，最后动因；剩余权重按当前信号分配，并做上限保护与归一化。
+              </Text>
+              {!!autoWhy.length && (
+                <Text className="reason-why">理由：{autoWhy.slice(0,2).join(' / ')}</Text>
+              )}
+            </>
+          ) : (
+            <Text className="reason-main">手动：可微调权重</Text>
+          )}
+        </View>
       </View>
 
       <WeightControls
