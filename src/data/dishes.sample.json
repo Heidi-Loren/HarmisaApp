@@ -1,0 +1,36 @@
+[
+  {
+    "name_cn":"清蒸鱼（少盐）",
+    "food_group":["鱼虾贝蟹"],
+    "cuisine":"粤","course":"主菜",
+    "ingredients_core":["鲈鱼","姜","葱"],
+    "method":"蒸","oil_level":0,"spicy_level":0,"sodium_level":1,
+    "diet_rules":["低脂","低FODMAP可"], "allergens":["鱼"],
+    "tcm_props":{"thermal":"平","effect":"化湿"},
+    "env_tags":["夏","湿热"],
+    "substitutions":{"鱼":["虾","鸡胸"]},
+    "fit_vector":{
+      "constitution":{"平":0.4,"温":0.2,"化湿":0.5,"寒":-0.3},
+      "environment":{"夏":0.4,"湿热":0.5,"干燥":-0.2},
+      "motive":{"P":0.5,"H":0.3,"S":0.2,"E":0.2}
+    },
+    "explanation_snippets":["清蒸少油助化湿","夏季湿热更稳","高蛋白饱腹"]
+  },
+  {
+    "name_cn":"番茄牛腩汤",
+    "food_group":["畜禽肉","蔬菜"],
+    "cuisine":"家常","course":"汤品",
+    "ingredients_core":["牛腩","番茄","洋葱"],
+    "method":"炖","oil_level":1,"spicy_level":0,"sodium_level":2,
+    "diet_rules":["低GI可"], "allergens":[],
+    "tcm_props":{"thermal":"温","effect":"和中"},
+    "env_tags":["秋","干燥"],
+    "substitutions":{"牛腩":["鸡腿","豆腐"]},
+    "fit_vector":{
+      "constitution":{"温":0.6,"和中":0.5},
+      "environment":{"秋":0.5,"干燥":0.3},
+      "motive":{"E":0.5,"H":0.3,"P":0.2}
+    },
+    "explanation_snippets":["温热汤炖安抚","润口不腻","适合秋季干燥"]
+  }
+]

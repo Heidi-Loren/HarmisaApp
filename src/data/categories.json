@@ -1,0 +1,147 @@
+[
+  {
+    "code": "P-HP-Lite",
+    "motivation": "P",
+    "name": "高蛋白·清淡",
+    "one_line_desc": "增肌恢复，轻负担",
+    "boost": {
+      "constitution": { "温": 0.10, "平": 0.05, "化湿": 0.05 },
+      "environment": { "夏": 0.10, "湿热": 0.05 },
+      "motive": { "P": 0.25 }
+    },
+    "filters": { "oil_level": { "lte": 1 }, "spicy_level": { "lte": 1 } },
+    "sort_order": 10
+  },
+  {
+    "code": "P-LowGI",
+    "motivation": "P",
+    "name": "稳糖·低GI",
+    "one_line_desc": "平稳不犯困",
+    "boost": {
+      "environment": { "午后": 0.10 },
+      "motive": { "P": 0.25 }
+    },
+    "filters": { "spicy_level": { "lte": 1 }, "oil_level": { "lte": 2 } },
+    "sort_order": 11
+  },
+  {
+    "code": "P-HighFiber",
+    "motivation": "P",
+    "name": "高纤维·低脂",
+    "one_line_desc": "控热量、通便、轻负担",
+    "boost": {
+      "constitution": { "化湿": 0.10, "平": 0.05 },
+      "environment": { "秋": 0.10 },
+      "motive": { "P": 0.20 }
+    },
+    "filters": { "oil_level": { "lte": 1 }, "spicy_level": { "lte": 1 } },
+    "sort_order": 12
+  },
+
+  {
+    "code": "H-OneBowl",
+    "motivation": "H",
+    "name": "省事·一碗餐",
+    "one_line_desc": "主配齐活，低决策成本",
+    "boost": {
+      "motive": { "H": 0.30 }
+    },
+    "filters": { "oil_level": { "lte": 2 }, "spicy_level": { "lte": 1 } },
+    "sort_order": 20
+  },
+  {
+    "code": "H-Homey",
+    "motivation": "H",
+    "name": "常吃·家常味",
+    "one_line_desc": "熟悉口味，稳妥不过激",
+    "boost": {
+      "constitution": { "平": 0.10 },
+      "motive": { "H": 0.30 }
+    },
+    "filters": { "spicy_level": { "lte": 1 }, "oil_level": { "lte": 2 } },
+    "sort_order": 21
+  },
+  {
+    "code": "H-BentoStable",
+    "motivation": "H",
+    "name": "便当·耐放",
+    "one_line_desc": "带饭与外卖稳定，不散不塌",
+    "boost": {
+      "environment": { "工作日": 0.10 },
+      "motive": { "H": 0.30 }
+    },
+    "filters": { "spicy_level": { "lte": 1 }, "oil_level": { "lte": 2 } },
+    "sort_order": 22
+  },
+
+  {
+    "code": "S-GroupFriendly",
+    "motivation": "S",
+    "name": "聚餐·通用口味",
+    "one_line_desc": "咸鲜为主、少辣，适合多人",
+    "boost": {
+      "motive": { "S": 0.30 }
+    },
+    "filters": { "spicy_level": { "lte": 2 }, "oil_level": { "lte": 2 } },
+    "sort_order": 30
+  },
+  {
+    "code": "S-LightSpicy",
+    "motivation": "S",
+    "name": "小辣·开胃",
+    "one_line_desc": "轻度刺激，打开味蕾",
+    "boost": {
+      "constitution": { "和中": 0.10 },
+      "motive": { "S": 0.25 }
+    },
+    "filters": { "spicy_level": { "lte": 2 }, "oil_level": { "lte": 2 } },
+    "sort_order": 31
+  },
+  {
+    "code": "S-Signature",
+    "motivation": "S",
+    "name": "招牌·有话题",
+    "one_line_desc": "店内招牌，上桌体面",
+    "boost": {
+      "motive": { "S": 0.30 }
+    },
+    "filters": { "spicy_level": { "lte": 2 } },
+    "sort_order": 32
+  },
+
+  {
+    "code": "E-WarmSoup",
+    "motivation": "E",
+    "name": "温热·汤炖",
+    "one_line_desc": "安抚系但不过油",
+    "boost": {
+      "constitution": { "温": 0.10, "和中": 0.10 },
+      "motive": { "E": 0.30 }
+    },
+    "filters": { "spicy_level": { "lte": 1 }, "oil_level": { "lte": 2 } },
+    "sort_order": 40
+  },
+  {
+    "code": "E-Satiety",
+    "motivation": "E",
+    "name": "满足·高饱腹",
+    "one_line_desc": "软糯筋道、顶饿但控负担",
+    "boost": {
+      "constitution": { "温": 0.05 },
+      "motive": { "E": 0.25 }
+    },
+    "filters": { "oil_level": { "lte": 2 }, "spicy_level": { "lte": 1 } },
+    "sort_order": 41
+  },
+  {
+    "code": "E-LightSweet",
+    "motivation": "E",
+    "name": "清甜·少负担",
+    "one_line_desc": "一点甜感，舒缓但不腻",
+    "boost": {
+      "motive": { "E": 0.25 }
+    },
+    "filters": { "oil_level": { "lte": 1 }, "spicy_level": { "lte": 1 } },
+    "sort_order": 42
+  }
+]
