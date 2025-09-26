@@ -23,11 +23,17 @@ type CategoryBlock = {
 
 type Props = {
   user: UserContext;
-  ingredientWhitelist?: string[]; // 食材模式：可用食材集合（核心食材≥70%覆盖）
-  menuCandidates?: string[];      // 餐厅模式：菜单菜名集合（全匹配/近似匹配）
+  ingredientWhitelist?: string[];
+  menuCandidates?: string[];
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""; // 需要在小程序后台将域名加入合法请求域名
+// ---- 只从小程序本地读取 API_BASE，读不到就用你的 vercel 域名
+function getApiBase(): string {
+  const fromStorage = Taro.getStorageSync?.("API_BASE");
+  if (fromStorage) return String(fromStorage);
+  return "https://harmisa-app.vercel.app"; // 你的 vercel 地址
+}
+const API_BASE = getApiBase();
 
 export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }: Props) {
   const [tab, setTab] = useState<"P"|"H"|"S"|"E">("P");
@@ -37,17 +43,22 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
   useEffect(() => { fetchTab(tab); /* eslint-disable-next-line */ }, [tab]);
 
   async function fetchTab(m: "P"|"H"|"S"|"E") {
+    if (!API_BASE) {
+      Taro.showToast({ title: "API_BASE 未配置", icon: "none" });
+      setBlocks([]);
+      return;
+    }
     setLoading(true);
     try {
       const res = await Taro.request({
         url: `${API_BASE}/api/recommend`,
         method: "POST",
-        data: { user, motivation: m, includeFields: ["ingredients_core"] } // 若后端不返回该字段，过滤会自动放行
+        data: { user, motivation: m, includeFields: ["ingredients_core"] }
       });
       const group = (res.data?.groups || []).find((g:any)=>g.motivation===m);
       setBlocks(group?.categories || []);
     } catch (e) {
-      console.error(e);
+      console.error("[RecoPanel] /api/recommend error:", e);
       Taro.showToast({ title: "获取推荐失败", icon: "none" });
       setBlocks([]);
     } finally {
@@ -55,9 +66,8 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
     }
   }
 
-  // —— 过滤：食材/菜单
   const filtered = useMemo(() => {
-    const norm = (s:string) => (s||"").toLowerCase().replace(/\s+/g,'');
+    const norm = (s:string) => (s||"").toLowerCase().replace(/\s+/g,"");
     const menuSet = new Set((menuCandidates||[]).map(norm));
     const hasMenu = menuSet.size > 0;
     const hasPantry = (ingredientWhitelist||[]).length > 0;
@@ -65,7 +75,7 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
     const byPantry = (it: Item) => {
       if (!hasPantry) return true;
       const ings = it.ingredients_core || [];
-      if (!ings.length) return true; // 后端未返回，则放行（MVP 容错）
+      if (!ings.length) return true;
       const pantry = new Set(ingredientWhitelist!.map(x => norm(x)));
       const hit = ings.filter(x => pantry.has(norm(x))).length;
       return ings.length === 0 ? true : (hit / ings.length) >= 0.7;
@@ -77,7 +87,7 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
       return menuSet.has(n) || Array.from(menuSet).some(m => n.includes(m) || m.includes(n));
     };
 
-    return (blocks || []).map(b => ({
+    return (blocks||[]).map(b => ({
       ...b,
       items: (b.items||[]).filter(it => byPantry(it) && byMenu(it))
     }));
@@ -87,7 +97,7 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
     <View className="reco-panel">
       <View className="mot-tabs">
         {(["P","H","S","E"] as const).map(m =>
-          <Button key={m} size="mini" className={tab===m?'active':''} onClick={()=>setTab(m)}>
+          <Button key={m} size="mini" className={tab===m ? "active" : ""} onClick={()=>setTab(m)}>
             {m==="P"?"自护":m==="H"?"习惯":m==="S"?"社交":"情绪"}
           </Button>
         )}
@@ -109,7 +119,8 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
                     {it.substitutions && !!Object.keys(it.substitutions).length && (
                       <Text className="item-sub">
                         可替换：{
-                          Object.entries(it.substitutions).slice(0,2).map(([k,arr])=>`${k}→${(arr||[]).slice(0,2).join("/")}`).join("；")
+                          Object.entries(it.substitutions).slice(0,2)
+                            .map(([k,arr])=>`${k}→${(arr||[]).slice(0,2).join("/")}`).join("；")
                         }
                       </Text>
                     )}

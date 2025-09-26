@@ -15,7 +15,11 @@ export default function B2BIndex() {
   const [tab, setTab] = useState<"ingredients"|"restaurant">("ingredients");
   const [user, setUser] = useState<UserContext | null>(null);
 
+
+
+
   useEffect(() => {
+    Taro.setStorageSync('API_BASE', 'https://harmisa-app.vercel.app/');
     try {
       const p = readUserProfileFromStorage();
       if (!p) throw new Error("no profile");
