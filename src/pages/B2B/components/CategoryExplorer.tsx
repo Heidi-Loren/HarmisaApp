@@ -1,4 +1,3 @@
-// src/pages/B2B/components/CategoryExplorer.tsx
 import { useEffect, useState } from "react";
 import { View, Text, Input, Button, ScrollView, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
@@ -32,7 +31,7 @@ export default function CategoryExplorer({
     setLoading(true);
     try {
       const res = await Taro.request({
-        url: `${apiBase}/api/recipes_zh`,
+        url: `${apiBase}/api/recipes_cn`,
         method: "POST",
         header: { "Content-Type":"application/json" },
         data: {
@@ -66,7 +65,7 @@ export default function CategoryExplorer({
 
       <View className="ex-toolbar">
         <Input
-          className="ipt" value={q} placeholder="搜菜名/做法关键词"
+          className="ipt" value={q} placeholder="搜菜名/做法关键词（中文可用）"
           confirmType="search"
           onInput={e=>setQ((e.detail as any).value)}
           onConfirm={()=>resetAndFetch()}
