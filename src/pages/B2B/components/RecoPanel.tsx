@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { View, Text, Button, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import type { UserContext } from "@/lib/types";
+import { mockGroups } from "@/data/mockReco";
+
 
 type Item = {
   id: string;
@@ -27,11 +29,10 @@ type Props = {
   menuCandidates?: string[];
 };
 
-// ---- 只从小程序本地读取 API_BASE，读不到就用你的 vercel 域名
 function getApiBase(): string {
   const fromStorage = Taro.getStorageSync?.("API_BASE");
   if (fromStorage) return String(fromStorage);
-  return "https://harmisa-app.vercel.app"; // 你的 vercel 地址
+  return "https://harmisa-app.vercel.app";
 }
 const API_BASE = getApiBase();
 
@@ -45,8 +46,7 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
   async function fetchTab(m: "P"|"H"|"S"|"E") {
     if (!API_BASE) {
       Taro.showToast({ title: "API_BASE 未配置", icon: "none" });
-      setBlocks([]);
-      return;
+      setBlocks([]); return;
     }
     setLoading(true);
     try {
@@ -58,12 +58,13 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
       const group = (res.data?.groups || []).find((g:any)=>g.motivation===m);
       setBlocks(group?.categories || []);
     } catch (e) {
-      console.error("[RecoPanel] /api/recommend error:", e);
-      Taro.showToast({ title: "获取推荐失败", icon: "none" });
-      setBlocks([]);
-    } finally {
-      setLoading(false);
+      console.error("[RecoPanel] /api/recommend error, fallback to mock:", e);
+      const groups = mockGroups();
+      const group = groups.find((g:any)=>g.motivation===m);
+      setBlocks(group?.categories || []);
+      Taro.showToast({ title: "后端未连通，使用演示数据", icon: "none" });
     }
+
   }
 
   const filtered = useMemo(() => {

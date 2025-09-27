@@ -15,23 +15,23 @@ export default function B2BIndex() {
   const [tab, setTab] = useState<"ingredients"|"restaurant">("ingredients");
   const [user, setUser] = useState<UserContext | null>(null);
 
-
-
-
   useEffect(() => {
-    Taro.setStorageSync('API_BASE', 'https://harmisa-app.vercel.app/');
+    // 再写一遍，确保子组件能读到
+    Taro.setStorageSync("API_BASE", "https://harmisa-app.vercel.app");
+
     try {
       const p = readUserProfileFromStorage();
-      if (!p) throw new Error("no profile");
-      setUser(toUserContext(p));  // 体质/环境/动因 -> 标准三层向量
+      if (p) setUser(toUserContext(p));
+      else {
+        // 兜底画像
+        setUser({
+          constitution_vector: { "温": 0.6, "化湿": 0.4, "阳虚": 0.5 },
+          environment_vector:  { "夏": 0.4, "湿热": 0.5, "华东": 0.2 },
+          motive_vector:       { "P": 0.5, "H": 0.3, "S": 0.1, "E": 0.1 },
+          hard_filters: { spicy_max: 1, oil_max: 2 }
+        });
+      }
     } catch {
-      // 最小兜底（可替换为你的默认/引导）
-      setUser({
-        constitution_vector: { "温": 0.6, "化湿": 0.4, "阳虚": 0.5 },
-        environment_vector:  { "夏": 0.4, "湿热": 0.5, "华东": 0.2 },
-        motive_vector:       { "P": 0.5, "H": 0.3, "S": 0.1, "E": 0.1 },
-        hard_filters: { spicy_max: 1, oil_max: 2 }
-      });
       Taro.showToast({ title: "使用默认画像", icon: "none" });
     }
   }, []);
@@ -46,11 +46,7 @@ export default function B2BIndex() {
         </View>
       </View>
 
-      {user && (
-        tab === "ingredients"
-          ? <IngredientMode user={user}/>
-          : <RestaurantMode user={user}/>
-      )}
+      {user && (tab === "ingredients" ? <IngredientMode user={user}/> : <RestaurantMode user={user}/>)}
     </View>
   );
 }
