@@ -5,6 +5,8 @@ import type { UserContext } from "@/lib/types";
 import { mockGroups } from "@/data/mockReco";
 import { GROUPED_CATEGORY_META } from "@/data/categoryMeta";
 
+
+
 type Item = {
   id: string;
   name_cn: string;
@@ -171,6 +173,7 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
         <View className="empty">
           <Text className="muted">{err || "暂无可展示数据"}</Text>
         </View>
+        
       )}
     </View>
   );

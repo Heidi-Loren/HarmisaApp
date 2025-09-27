@@ -178,3 +178,15 @@
   padding: 2px 8px;
   font-size: 22rpx;
 }
+
+.public-recipes {
+  display: flex; flex-direction: column; gap: 10rpx; margin-top: 8rpx;
+  .pr-item { display: flex; gap: 10rpx; border: 1px dashed #e5e6eb; border-radius: 10rpx; padding: 6rpx; background: #fafbfc; }
+  .thumb { width: 140rpx; height: 100rpx; border-radius: 8rpx; }
+  .meta { display: flex; flex-direction: column; gap: 4rpx; flex: 1; }
+  .title { font-weight: 600; }
+  .sub { color: #86909c; font-size: 24rpx; }
+  .ins { color: #4b5563; font-size: 26rpx; line-height: 1.4; }
+}
+.divider { height: 1px; background: #f0f0f0; margin: 8rpx 0; }
+.pr-head { color: #6b7280; font-size: 26rpx; margin-bottom: 6rpx; }
