@@ -27,9 +27,9 @@ type CategoryBlock = {
 
 type Props = {
   user: UserContext;
-  /** 食材模式：今日可用食材（将用于样本菜/公开食谱的过滤与排序） */
+  /** 食材模式：今日可用食材（用于公开食谱排序/过滤） */
   ingredientWhitelist?: string[];
-  /** 餐厅模式：菜单菜名集合（暂保留兼容，不在 C 端使用） */
+  /** 餐厅模式预留 */
   menuCandidates?: string[];
 };
 
@@ -50,12 +50,8 @@ export default function RecoPanel({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // 浏览器（全屏抽屉）控制
-  const [explore, setExplore] = useState<{
-    open: boolean;
-    code?: string;
-    title?: string;
-  }>({ open: false });
+  // 全屏浏览器
+  const [explore, setExplore] = useState<{ open: boolean; code?: string; title?: string }>({ open: false });
 
   useEffect(() => {
     void fetchTab(tab);
@@ -95,7 +91,7 @@ export default function RecoPanel({
         );
         setServerBlocks((group2?.categories || []) as CategoryBlock[]);
       } catch {
-        // 3) 最后兜底：本地 mock
+        // 3) 兜底：mock
         const groups = mockGroups();
         const g = groups.find((x: any) => x.motivation === m) as any;
         setServerBlocks((g?.categories || []) as CategoryBlock[]);
@@ -106,7 +102,7 @@ export default function RecoPanel({
     }
   }
 
-  /** 前端用“元数据”补齐：无论后端回多少，都把 3 个类别卡凑齐 */
+  /** 用元数据补齐固定 3 张类别卡 */
   const filledBlocks = useMemo(() => {
     const metas = GROUPED_CATEGORY_META[tab];
     const map = new Map((serverBlocks || []).map((b) => [b.code, b]));
@@ -124,7 +120,7 @@ export default function RecoPanel({
     });
   }, [serverBlocks, tab]);
 
-  /** 食材/菜单过滤（C 端仅食材；菜单保留兼容） */
+  /** C 端仅食材；菜单保留兼容（不影响渲染） */
   const filtered = useMemo(() => {
     const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "");
     const menuSet = new Set((menuCandidates || []).map(norm));
@@ -157,7 +153,7 @@ export default function RecoPanel({
 
   return (
     <View className="reco-panel">
-      {/* 粘性动因 Tab */}
+      {/* 动因 Tab */}
       <View className="mot-tabs sticky">
         {(["P", "H", "S", "E"] as const).map((m) => (
           <Button
@@ -191,57 +187,21 @@ export default function RecoPanel({
                 <Text className="badge">示例</Text>
               </View>
 
-              {/* 代表样本菜 */}
+              {/* ✅ 示例：不再渲染本地 items，直接用中文食谱接口取 3 条 */}
               <View className="items">
-                {cat.items?.length ? (
-                  cat.items.slice(0, 5).map((it, i) => (
-                    <View key={it.id} className="item">
-                      <Text className="item-name">
-                        {i + 1}. {it.name_cn}
-                      </Text>
-                      {it.explanation && (
-                        <Text className="item-exp">{it.explanation}</Text>
-                      )}
-                      {it.substitutions &&
-                        !!Object.keys(it.substitutions).length && (
-                          <Text className="item-sub">
-                            可替换：
-                            {Object.entries(it.substitutions)
-                              .slice(0, 2)
-                              .map(
-                                ([k, arr]) =>
-                                  `${k}→${(arr || []).slice(0, 2).join("/")}`
-                              )
-                              .join("；")}
-                          </Text>
-                        )}
-                    </View>
-                  ))
-                ) : (
-                  <Text className="muted">
-                    （本类别暂无符合当前候选集的样本菜）
-                  </Text>
-                )}
+                <PublicRecipes code={cat.code} ings={ingredientWhitelist} limit={3} />
               </View>
 
-              {/* 公开食谱（中文优先，自动降级英文） */}
+              {/* 公开食谱 */}
               <View className="divider" />
-              <View className="pr-head">
-                <Text>公开食谱</Text>
-              </View>
-              <PublicRecipes
-                code={cat.code}
-                ings={ingredientWhitelist}
-                limit={4}
-              />
+              <View className="pr-head"><Text>公开食谱</Text></View>
+              <PublicRecipes code={cat.code} ings={ingredientWhitelist} limit={4} />
 
-              {/* 查看更多（打开全屏食谱浏览器） */}
+              {/* 查看更多（全屏浏览器） */}
               <View className="more-wrap">
                 <Button
                   size="mini"
-                  onClick={() =>
-                    setExplore({ open: true, code: cat.code, title: cat.name })
-                  }
+                  onClick={() => setExplore({ open: true, code: cat.code, title: cat.name })}
                 >
                   查看更多食谱
                 </Button>
@@ -257,7 +217,7 @@ export default function RecoPanel({
         </View>
       )}
 
-      {/* 全屏食谱浏览器（可搜索/分页/仅看匹配今日食材/加入购物清单） */}
+      {/* 全屏食谱浏览器（搜索/分页/仅看匹配今日食材/加入购物清单） */}
       <CategoryExplorer
         visible={explore.open}
         code={explore.code || ""}
