@@ -1,10 +1,9 @@
-// src/pages/B2B/components/RecoPanel.tsx
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, Button, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import type { UserContext } from "@/lib/types";
 import { mockGroups } from "@/data/mockReco";
-
+import { GROUPED_CATEGORY_META } from "@/data/categoryMeta";
 
 type Item = {
   id: string;
@@ -26,7 +25,7 @@ type CategoryBlock = {
 type Props = {
   user: UserContext;
   ingredientWhitelist?: string[];
-  menuCandidates?: string[];
+  menuCandidates?: string[];      // 现在 C 端不用，保留兼容
 };
 
 function getApiBase(): string {
@@ -38,35 +37,62 @@ const API_BASE = getApiBase();
 
 export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }: Props) {
   const [tab, setTab] = useState<"P"|"H"|"S"|"E">("P");
-  const [blocks, setBlocks] = useState<CategoryBlock[]>([]);
+  const [serverBlocks, setServerBlocks] = useState<CategoryBlock[]>([]);
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => { fetchTab(tab); /* eslint-disable-next-line */ }, [tab]);
+  useEffect(() => { void fetchTab(tab); /* eslint-disable-next-line */ }, [tab]);
 
   async function fetchTab(m: "P"|"H"|"S"|"E") {
-    if (!API_BASE) {
-      Taro.showToast({ title: "API_BASE 未配置", icon: "none" });
-      setBlocks([]); return;
-    }
     setLoading(true);
+    setErr(null);
     try {
+      // 先 POST
       const res = await Taro.request({
         url: `${API_BASE}/api/recommend`,
         method: "POST",
+        header: { "Content-Type": "application/json" },
         data: { user, motivation: m, includeFields: ["ingredients_core"] }
       });
-      const group = (res.data?.groups || []).find((g:any)=>g.motivation===m);
-      setBlocks(group?.categories || []);
-    } catch (e) {
-      console.error("[RecoPanel] /api/recommend error, fallback to mock:", e);
-      const groups = mockGroups();
-      const group = groups.find((g:any)=>g.motivation===m);
-      setBlocks(group?.categories || []);
-      Taro.showToast({ title: "后端未连通，使用演示数据", icon: "none" });
+      const ok = res.statusCode >= 200 && res.statusCode < 300 && !!res.data?.groups;
+      if (!ok) throw new Error(`POST ${res.statusCode}`);
+      const group = (res.data.groups as any[]).find(g => g.motivation === m);
+      setServerBlocks(group?.categories || []);
+    } catch {
+      try {
+        // 降级 GET
+        const res2 = await Taro.request({ url: `${API_BASE}/api/recommend`, method: "GET" });
+        const group2 = (res2.data?.groups as any[] || []).find(g => g.motivation === m);
+        setServerBlocks(group2?.categories || []);
+      } catch {
+        // 最后兜底：mock
+        const groups = mockGroups();
+        const g = groups.find(x => (x as any).motivation === m) as any;
+        setServerBlocks(g?.categories || []);
+        setErr("后端未连通，使用演示数据");
+      }
+    } finally {
+      setLoading(false);
     }
-
   }
 
+  // —— 用元数据补齐：无论后端回多少，前端总是把 3 个动因类目凑齐
+  const filledBlocks = useMemo(() => {
+    const metas = GROUPED_CATEGORY_META[tab];
+    const map = new Map((serverBlocks||[]).map(b => [b.code, b]));
+    return metas.map(meta => {
+      const hit = map.get(meta.code);
+      return hit ? hit : {
+        code: meta.code,
+        motivation: meta.motivation,
+        name: meta.name,
+        one_line_desc: meta.one_line_desc,
+        items: [] as Item[],
+      };
+    });
+  }, [serverBlocks, tab]);
+
+  // —— 食材/菜单过滤（C 端只用食材；菜单这块等 ToB 再开）
   const filtered = useMemo(() => {
     const norm = (s:string) => (s||"").toLowerCase().replace(/\s+/g,"");
     const menuSet = new Set((menuCandidates||[]).map(norm));
@@ -88,15 +114,15 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
       return menuSet.has(n) || Array.from(menuSet).some(m => n.includes(m) || m.includes(n));
     };
 
-    return (blocks||[]).map(b => ({
+    return (filledBlocks||[]).map(b => ({
       ...b,
       items: (b.items||[]).filter(it => byPantry(it) && byMenu(it))
     }));
-  }, [blocks, ingredientWhitelist, menuCandidates]);
+  }, [filledBlocks, ingredientWhitelist, menuCandidates]);
 
   return (
     <View className="reco-panel">
-      <View className="mot-tabs">
+      <View className="mot-tabs sticky">
         {(["P","H","S","E"] as const).map(m =>
           <Button key={m} size="mini" className={tab===m ? "active" : ""} onClick={()=>setTab(m)}>
             {m==="P"?"自护":m==="H"?"习惯":m==="S"?"社交":"情绪"}
@@ -104,13 +130,21 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
         )}
       </View>
 
-      {loading ? <Text className="muted">加载中…</Text> : (
+      {loading && (
+        <View className="skeleton">
+          <View className="sk-card" /><View className="sk-card" />
+          <Text className="muted">加载中…</Text>
+        </View>
+      )}
+
+      {!loading && !!filtered.length && (
         <ScrollView scrollY className="cats">
-          {(filtered||[]).map(cat => (
+          {filtered.map(cat => (
             <View key={cat.code} className="cat-card">
               <View className="cat-hd">
                 <Text className="cat-name">{cat.name}</Text>
                 {cat.one_line_desc && <Text className="cat-desc">{cat.one_line_desc}</Text>}
+                <Text className="badge">示例</Text>
               </View>
               <View className="items">
                 {cat.items?.length ? cat.items.slice(0,5).map((it,i)=>(
@@ -126,11 +160,17 @@ export default function RecoPanel({ user, ingredientWhitelist, menuCandidates }:
                       </Text>
                     )}
                   </View>
-                )) : <Text className="muted">（本类别暂无符合当前候选集的菜）</Text>}
+                )) : <Text className="muted">（本类别暂无符合当前候选集的样本菜）</Text>}
               </View>
             </View>
           ))}
         </ScrollView>
+      )}
+
+      {!loading && !filtered.length && (
+        <View className="empty">
+          <Text className="muted">{err || "暂无可展示数据"}</Text>
+        </View>
       )}
     </View>
   );
