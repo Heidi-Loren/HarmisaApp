@@ -1,38 +1,58 @@
-// src/pages/B2B/components/IngredientMode.tsx
-import { useState } from "react";
-import { View, Text, Button } from "@tarojs/components";
-import RecoPanel from "./RecoPanel";
+import { useEffect, useState } from "react";
+import { View, Text } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import type { UserContext } from "@/lib/types";
+import RecoPanel from "./RecoPanel";
+import PantryEditor from "./PantryEditor";
+import {
+  readPantryHistory, readPantryToday,
+  savePantryHistory, savePantryToday, upsertPantryHistory
+} from "@/utils/pantry/storage";
 
-const SUGGEST_INGS = [
-  "鸡胸","鸡蛋","西兰花","胡萝卜","番茄","生菜","土豆","玉米","米饭","面条",
-  "豆腐","三文鱼","鲈鱼","虾","香菇","青江菜","燕麦","牛腩","青椒","洋葱","蒜","姜"
-];
+export default function IngredientMode({ user }: { user: UserContext }) {
+  const [history, setHistory] = useState<string[]>([]);
+  const [today, setToday] = useState<string[]>([]);
 
-export default function IngredientMode({ user }:{ user: UserContext }) {
-  const [ings, setIngs] = useState<string[]>(["鸡胸","西兰花","米饭"]);
+  // 初始化：读取本地存储
+  useEffect(() => {
+    try {
+      setHistory(readPantryHistory());
+      setToday(readPantryToday());
+    } catch {
+      Taro.showToast({ title: "食材读取失败，使用空白", icon: "none" });
+    }
+  }, []);
 
-  function toggle(x:string){
-    setIngs(prev => prev.includes(x) ? prev.filter(i=>i!==x) : [...prev, x]);
+  // 实时回传（可选）
+  function handleUpdate(nextToday: string[], nextHistory: string[]) {
+    setToday(nextToday);
+    setHistory(nextHistory);
+    savePantryToday(nextToday);
+    savePantryHistory(nextHistory);
   }
-  function clear(){ setIngs([]); }
+
+  // 点击“应用”
+  function apply(nextToday: string[]) {
+    setToday(nextToday);
+    savePantryToday(nextToday);
+    upsertPantryHistory(nextToday);
+    setHistory(readPantryHistory());
+    Taro.showToast({ title: "已应用今日食材", icon: "none" });
+  }
 
   return (
     <View className="mode ingredients">
-      <View className="bar">
-        <Text className="bar-title">可用食材</Text>
-        <Button size="mini" onClick={clear}>清空</Button>
-      </View>
+      <Text className="hint">只展示“核心食材≥70%命中今日食材”的样本菜与公开食谱。</Text>
 
-      <View className="chips">
-        {SUGGEST_INGS.map(x=>(
-          <Text key={x} className={`chip ${ings.includes(x)?"on":""}`} onClick={()=>toggle(x)}>{x}</Text>
-        ))}
-      </View>
+      <PantryEditor
+        today={today}
+        history={history}
+        onUpdate={handleUpdate}
+        onApply={apply}
+      />
 
-      <View className="hint">只展示“核心食材≥70%被这些食材覆盖”的样本菜（MVP 规则，可调）。</View>
-
-      <RecoPanel user={user} ingredientWhitelist={ings}/>
+      {/* 这里把今日食材作为 whitelist 传入推荐与公开食谱 */}
+      <RecoPanel user={user} ingredientWhitelist={today} />
     </View>
   );
 }

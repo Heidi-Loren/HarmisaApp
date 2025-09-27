@@ -1,4 +1,4 @@
-// api/recipes_zh.ts —— 中文食谱（天行数据）代理，统一成前端的 Recipe 结构
+// api/recipes_zh.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 type Recipe = {
@@ -9,7 +9,6 @@ type Recipe = {
   source?: string;
 };
 
-// 12 个标签 → 中文关键词（可随时微调）
 const KEYWORDS: Record<string, string[]> = {
   "P-HP-Lite":   ["清蒸 鸡胸", "清蒸 鱼", "水煮 鸡胸"],
   "P-LowGI":     ["低GI", "粗粮 沙拉", "荞麦 面"],
@@ -25,35 +24,31 @@ const KEYWORDS: Record<string, string[]> = {
   "E-Refreshing": ["清爽 凉拌", "柠檬 沙拉", "薄荷"],
 };
 
-// 解析“原料/调料”成统一结构
 function parseIngs(yuanliao?: string, tiaoliao?: string) {
   const chunks = [yuanliao, tiaoliao].filter(Boolean) as string[];
   const parts = chunks.join("；").split(/[；;、]/).map(s => s.trim()).filter(Boolean);
   return parts.map(s => {
-    // 形如 “鸡胸 200克”
     const m = s.match(/^(.+?)[\s：:]+(.+)$/);
     return m ? { name: m[1], measure: m[2] } : { name: s, measure: "" };
   });
 }
 
-async function callTian(word: string, num = 10) {
+async function callTian(word: string, num = 10, page = 1) {
   const key = process.env.TIANAPI_KEY;
   if (!key) throw new Error("TIANAPI_KEY_MISSING");
   const form = new URLSearchParams();
   form.set("key", key);
   if (word) form.set("word", word);
   form.set("num", String(num));
-
+  form.set("page", String(page));
   const r = await fetch("https://apis.tianapi.com/caipu/index", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: form.toString(),
   });
   const j = await r.json();
-  if (j?.code !== 200) return [];
-  const arr = j?.result?.newslist || j?.result?.list || [];
-  // 不同版本字段名稍有差异，这里做宽松兼容
-  return arr.map((x: any) => ({
+  if (j?.code !== 200) return { list: [], has_more: false };
+  const arr = (j?.result?.newslist || j?.result?.list || []).map((x: any) => ({
     id: String(x.id ?? x.cp_name ?? x.hash ?? Math.random()),
     title: String(x.cp_name ?? x.name ?? x.title ?? ""),
     thumb: x.picurl || x.pic || x.cover || undefined,
@@ -61,6 +56,8 @@ async function callTian(word: string, num = 10) {
     ingredients: parseIngs(x.yuanliao, x.tiaoliao),
     source: "TianAPI",
   })) as Recipe[];
+  // TianAPI 不回总数，这里用“到手条数<请求条数且下一页也空”作为 has_more 的近似
+  return { list: arr, has_more: arr.length >= num };
 }
 
 function uniqBy<T, K extends string | number>(arr: T[], pick: (t:T)=>K) {
@@ -72,57 +69,39 @@ function uniqBy<T, K extends string | number>(arr: T[], pick: (t:T)=>K) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const method = req.method || "GET";
   const code = (method === "GET" ? (req.query.code as string) : (req.body?.code as string)) || "";
-  const limit = Number(method === "GET" ? (req.query.limit || 4) : (req.body?.limit || 4));
-  // 你的小程序“可用食材”，中文逗号分隔；命中会加分；如果导致为空会自动放宽
-  const ings = ((method === "GET" ? (req.query.ings as string) : (req.body?.ings as string)) || "")
-    .split(",").map(s=>s.trim()).filter(Boolean);
+  const limit = Number(method === "GET" ? (req.query.limit || 10) : (req.body?.limit || 10));
+  const page  = Number(method === "GET" ? (req.query.page  || 1)  : (req.body?.page  || 1));
+  const q     = (method === "GET" ? (req.query.q as string) : (req.body?.q as string)) || ""; // 额外搜索词
+  const ingsCSV = (method === "GET" ? (req.query.ings as string) : (req.body?.ings as string)) || "";
+  const ings = ingsCSV.split(",").map(s=>s.trim()).filter(Boolean);
 
   try {
     const kws = KEYWORDS[code] || ["家常 菜"];
-    let pool: Recipe[] = [];
+    // 组合：用户搜索词优先，其次标签关键词（取首个）
+    const word = q ? q : kws[0];
+    let { list, has_more } = await callTian(word, limit, page);
 
-    // 1) 逐个关键词抓，合并去重
-    for (const w of kws) {
-      const part = await callTian(w, 12);
-      pool = uniqBy(pool.concat(part), x => x.id);
-      if (pool.length >= 20) break;
-    }
-
-    // 2) 轻权重排序：做法中是否包含“蒸/炖/汤/辣”等 + 食材词是否出现在用料
-    const hit = (text: string, words: string[]) =>
-      words.some(k => text.toLowerCase().includes(String(k).toLowerCase()));
-    const weights = (r: Recipe) => {
-      let s = 0;
-      const ins = (r.instructions || "");
-      // 根据标签粗略加分（只举例，不同 code 可扩）
-      if (code.startsWith("P-HP")) if (hit(ins, ["蒸","清炖","水煮","烤"])) s += 1;
-      if (code.includes("LowGI")) if (hit(ins, ["粗粮","全麦","蒸"])) s += 1;
-      if (code.startsWith("E-WarmSoup")) if (hit(ins, ["汤","炖"])) s += 1;
-      // 食材命中
-      const ingText = (r.ingredients||[]).map(x=>x.name).join(",");
-      ings.forEach(z => { if (ingText.includes(z)) s += 1; });
-      return s;
+    // 少量加权：食材命中（用料里包含用户 today 的词）
+    const hit = (r:Recipe) => {
+      const text = (r.ingredients||[]).map(x=>x.name).join(",");
+      return ings.reduce((s,z)=> s + (text.includes(z) ? 1 : 0), 0);
     };
-    pool.sort((a,b)=>weights(b)-weights(a));
+    list.sort((a,b)=> hit(b)-hit(a));
 
-    // 3) 若因食材过窄导致 0 条 —— 放宽为“忽略食材打分”的通用列表
-    let out = pool.slice(0, Math.max(1, limit));
-    if (!out.length) {
-      const fallback = await callTian(kws[0] || "家常 菜", 12);
-      out = fallback.slice(0, Math.max(1, limit));
-    }
+    // 去重（跨页去重交给前端；同页去重这里做一次）
+    list = uniqBy(list, x => x.id);
 
-    return res.status(200).json({ code, recipes: out, source: "tianapi" });
+    return res.status(200).json({ code, recipes: list, page, has_more, word, source: "tianapi" });
   } catch (e:any) {
-    // 兜底到英文库（保证前端有内容）
+    // 兜底：英文库（不分页）
     try {
-      const r = await fetch(`https://harmisa-app.vercel.app/api/recipes`, { method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify({ code, limit, ings: "" })
+      const r = await fetch(`${req.headers["x-forwarded-proto"]==="http"?"http":"https"}://${req.headers.host}/api/recipes`, {
+        method: "POST", headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({ code, limit })
       }).then(r=>r.json());
-      return res.status(200).json({ code, recipes: r.recipes || [], source: "fallback_mealdb" });
+      return res.status(200).json({ code, recipes: r.recipes || [], page:1, has_more:false, source: "fallback_mealdb" });
     } catch {
-      return res.status(200).json({ code, recipes: [], source: "none" });
+      return res.status(200).json({ code, recipes: [], page:1, has_more:false, source: "none" });
     }
   }
 }

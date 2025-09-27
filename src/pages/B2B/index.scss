@@ -190,3 +190,46 @@
 }
 .divider { height: 1px; background: #f0f0f0; margin: 8rpx 0; }
 .pr-head { color: #6b7280; font-size: 26rpx; margin-bottom: 6rpx; }
+
+
+.pantry .row { display:flex; gap:8rpx; align-items:center; margin:8rpx 0; }
+.pantry .ipt { flex:1; border:1px solid #e5e6eb; border-radius:10rpx; padding:12rpx; background:#fff; }
+.pantry .btn { border-radius:10rpx; }
+.pantry .primary { background:#2b6cfd; color:#fff; }
+
+.section { margin-top: 12rpx; }
+.sec-title { font-weight: 600; }
+.chips { display:flex; flex-wrap:wrap; gap:8rpx; margin-top: 8rpx; }
+.chip { padding: 6rpx 14rpx; border-radius: 999rpx; border:1px solid #e5e6eb; background:#f7f8fa; color:#333; }
+.chip.on { background:#e8f1ff; color:#2b6cfd; border-color:#cfe0ff; }
+.chip .x { margin-left: 6rpx; color:#667085; }
+.hint { color:#86909c; font-size: 24rpx; margin: 6rpx 0 10rpx; }
+
+
+.more-wrap { display:flex; justify-content:flex-end; margin-top: 6rpx; }
+.more-wrap .taro-button { border-radius: 10rpx; }
+
+.cat-explorer {
+  position: fixed; left:0; right:0; top:0; bottom:0; background:#fff; z-index: 9999; display:flex; flex-direction: column;
+}
+.ex-hdr { display:flex; justify-content:space-between; align-items:center; padding: 16rpx; border-bottom:1px solid #f0f0f0; }
+.ex-hdr .title { font-size: 32rpx; font-weight: 700; }
+.ex-toolbar { display:flex; gap: 8rpx; padding: 12rpx 16rpx; border-bottom:1px solid #f6f6f6; }
+.ex-toolbar .ipt { flex:1; border:1px solid #e5e6eb; padding: 10rpx 14rpx; border-radius: 10rpx; background:#fff; }
+.ex-toolbar .primary { background:#2b6cfd; color:#fff; }
+
+.ex-list { flex: 1 1 auto; padding: 12rpx 16rpx; }
+.ex-item { display:flex; gap: 12rpx; border:1px solid #eef0f3; border-radius: 12rpx; padding: 10rpx; margin-bottom: 10rpx; background:#fafbfc; }
+.ex-item .thumb { width: 150rpx; height: 120rpx; border-radius: 10rpx; }
+.ex-item .meta { flex:1; display:flex; flex-direction:column; gap: 6rpx; }
+.ex-item .name { font-weight: 700; }
+.ex-item .ins { color:#4b5563; font-size: 26rpx; }
+.ex-item .ings { color:#6b7280; font-size: 24rpx; }
+.ex-item .ops { margin-top: 4rpx; }
+.pad { display:block; text-align:center; padding: 12rpx 0; }
+
+.ex-cart { border-top:1px solid #f0f0f0; padding: 8rpx 16rpx; }
+.cart-title { font-weight: 600; }
+.cart-list { max-height: 160rpx; }
+.cart-item { display:flex; justify-content:space-between; padding: 4rpx 0; }
+.cart-item .rm { color:#ef4444; }
